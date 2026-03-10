@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  role         Role       @default(STAFF)
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  vehicles     Vehicle[]  @relation("CreatedBy")
+  auditLogs    AuditLog[]
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+model Vehicle {
+  id                 String        @id @default(uuid())
+  confirmationNumber String        @unique
+  vin                String        @unique
+  registrationNumber String
+  make               String
+  model              String
+  year               Int
+  odometer           Int
+  sellerPrice        Float?
+  location           String?
+  sellerName         String
+  sellerPhone        String
+  sellerEmail        String
+  submissionSource   Source        @default(STAFF_ENTRY)
+  submissionToken    String?
+  ipAddress          String?
+  status             VehicleStatus @default(PENDING_VERIFICATION)
+  riskScore          Int           @default(0)
+  riskFlags          Json          @default("[]")
+  adminNotes         Json          @default("[]")
+  sellerSignature    String?
+  signedAt           DateTime?
+  submittedAt        DateTime      @default(now())
+  createdById        String?
+  createdBy          User?         @relation("CreatedBy", fields: [createdById], references: [id])
+  identity           SellerIdentity?
+  ownership          OwnershipRecord?
+  ppsrCheck          PPSRCheck?
+  documents          Document[]
+  auditLogs          AuditLog[]
+}
+
+enum Source {
+  PUBLIC_PORTAL
+  STAFF_ENTRY
+  SINGLE_USE_LINK
+}
+
+enum VehicleStatus {
+  PENDING_VERIFICATION
+  DOCUMENTS_MISSING
+  RISK_FLAGGED
+  APPROVED
+  REJECTED
+}
+
+model SellerIdentity {
+  id                   String    @id @default(uuid())
+  vehicleId            String    @unique
+  vehicle              Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  fullLegalName        String
+  address              String
+  driversLicenceNumber String
+  licenceState         String
+  licenceExpiry        DateTime
+  licenceFrontDocId    String?
+  licenceBackDocId     String?
+  selfieDocId          String?
+  verifiedAt           DateTime?
+  verifiedById         String?
+}
+
+model OwnershipRecord {
+  id           String   @id @default(uuid())
+  vehicleId    String   @unique
+  vehicle      Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  documentType String
+  notes        String?
+  createdAt    DateTime @default(now())
+}
+
+model PPSRCheck {
+  id               String   @id @default(uuid())
+  vehicleId        String   @unique
+  vehicle          Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  checkedAt        DateTime @default(now())
+  checkedById      String?
+  isWrittenOff     Boolean  @default(false)
+  isStolen         Boolean  @default(false)
+  hasFinance       Boolean  @default(false)
+  certificateDocId String?
+  rawResult        Json?
+  status           String   @default("PENDING")
+}
+
+model Document {
+  id           String   @id @default(uuid())
+  vehicleId    String
+  vehicle      Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  category     String
+  originalName String
+  storagePath  String
+  mimeType     String
+  sizeBytes    Int
+  uploadedById String?
+  uploadedAt   DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  vehicleId String?
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  details   Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+model SubmissionToken {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  vehicleVin String?
+  used       Boolean  @default(false)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+}
+
+model Settings {
+  id             String  @id @default("singleton")
+  dealershipName String  @default("Direct Auto Wholesale")
+  logoPath       String?
+  primaryColor   String  @default("#1e40af")
+  contactEmail   String?
+  notifyOnSubmit Boolean @default(true)
+  notifyOnPPSR   Boolean @default(true)
+}
