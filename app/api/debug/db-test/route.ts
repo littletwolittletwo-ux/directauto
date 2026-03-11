@@ -107,8 +107,8 @@ export async function GET() {
       error: error.message,
       errorName: error.name,
       // Prisma errors often have a code
-      code: (error as Record<string, unknown>).code || null,
-      meta: (error as Record<string, unknown>).meta || null,
+      code: (error as unknown as Record<string, unknown>).code || null,
+      meta: (error as unknown as Record<string, unknown>).meta || null,
     }
   }
 
@@ -132,7 +132,7 @@ export async function GET() {
       const error = err as Error
       diagnostics.tableCounts = {
         error: error.message,
-        code: (error as Record<string, unknown>).code || null,
+        code: (error as unknown as Record<string, unknown>).code || null,
       }
     }
   }
