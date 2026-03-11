@@ -181,6 +181,56 @@ export async function sendPPSRFlagAlert({
   })
 }
 
+export async function sendSaleAgreement({
+  to,
+  sellerName,
+  year,
+  make,
+  model,
+  token,
+  dealershipName,
+  contactEmail,
+}: {
+  to: string
+  sellerName: string
+  year: number
+  make: string
+  model: string
+  token: string
+  dealershipName: string
+  contactEmail?: string
+}) {
+  const transporter = getTransporter()
+  const agreementUrl = `https://directauto.vercel.app/sale-agreement/${token}`
+
+  if (!transporter) {
+    console.log('[MAILER] Sale agreement email (SMTP not configured):', { to, token, agreementUrl })
+    return
+  }
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to,
+    subject: `Sale Agreement - ${year} ${make} ${model}`,
+    html: `
+      <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+        ${emailHeader(dealershipName)}
+        <div style="padding: 32px; background: white;">
+          <h2 style="color: #1e293b;">Sale Agreement</h2>
+          <p>Hi ${sellerName},</p>
+          <p style="color: #475569;">${dealershipName} would like to purchase your <strong>${year} ${make} ${model}</strong>. Please review and sign the sale agreement.</p>
+          <div style="margin: 24px 0; text-align: center;">
+            <a href="${agreementUrl}" style="background: #1e40af; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">Review & Sign Agreement →</a>
+          </div>
+          <p style="color: #64748b; font-size: 13px;">If the button doesn't work, copy and paste this link into your browser:</p>
+          <p style="color: #64748b; font-size: 12px; word-break: break-all;">${agreementUrl}</p>
+        </div>
+        ${emailFooter(contactEmail)}
+      </div>
+    `,
+  })
+}
+
 export async function sendSellerMoreInfoRequest({
   to,
   sellerName,

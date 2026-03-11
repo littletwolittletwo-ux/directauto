@@ -1,7 +1,6 @@
 /**
  * PPSR Cloud B2B API client
- * Auth: OAuth2 Client Credentials
- * Token endpoint: POST /oauth/token
+ * Auth: OAuth2 Client Credentials (application/x-www-form-urlencoded)
  * Search endpoint: POST /api/b2b/Middleware/afsa-submit-mv-search (synchronous motor vehicle search)
  */
 
@@ -54,39 +53,73 @@ function getConfig() {
   return { baseUrl, clientId, clientSecret }
 }
 
+/**
+ * Try multiple possible token endpoint paths.
+ * PPSR Cloud uses OAuth2 client credentials with form-urlencoded body.
+ */
 async function getAccessToken(baseUrl: string, clientId: string, clientSecret: string): Promise<string> {
-  const tokenUrl = `${baseUrl}/oauth/token`
+  const tokenPaths = [
+    '/connect/token',
+    '/identity/connect/token',
+    '/oauth/token',
+    '/api/oauth/token',
+  ]
 
-  const response = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      grant_type: 'client_credentials',
-      client_id: clientId,
-      client_secret: clientSecret,
-    }),
+  const body = new URLSearchParams({
+    grant_type: 'client_credentials',
+    client_id: clientId,
+    client_secret: clientSecret,
   })
 
-  const responseText = await response.text()
+  let lastError = ''
 
-  if (!response.ok) {
-    throw new Error(
-      `PPSR OAuth2 token error: ${response.status} ${response.statusText} - ${responseText}`
-    )
+  for (const path of tokenPaths) {
+    const tokenUrl = `${baseUrl}${path}`
+    console.log(`[PPSR] Trying token endpoint: ${tokenUrl}`)
+
+    try {
+      const response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      })
+
+      const responseText = await response.text()
+      console.log(`[PPSR] Token endpoint ${path} → ${response.status} ${response.statusText}`)
+
+      if (!response.ok) {
+        lastError = `${tokenUrl}: ${response.status} ${response.statusText} - ${responseText.slice(0, 300)}`
+        console.log(`[PPSR] Token endpoint failed: ${lastError}`)
+        continue
+      }
+
+      let data: { access_token: string }
+      try {
+        data = JSON.parse(responseText)
+      } catch {
+        lastError = `${tokenUrl}: Invalid JSON response - ${responseText.slice(0, 300)}`
+        console.log(`[PPSR] Token endpoint returned invalid JSON: ${responseText.slice(0, 300)}`)
+        continue
+      }
+
+      if (!data.access_token) {
+        lastError = `${tokenUrl}: Response missing access_token - ${responseText.slice(0, 300)}`
+        console.log(`[PPSR] Token response missing access_token`)
+        continue
+      }
+
+      console.log(`[PPSR] Successfully obtained token from ${path}`)
+      return data.access_token
+    } catch (err) {
+      lastError = `${tokenUrl}: Network error - ${err instanceof Error ? err.message : String(err)}`
+      console.log(`[PPSR] Network error for ${path}:`, err)
+      continue
+    }
   }
 
-  let data: { access_token: string }
-  try {
-    data = JSON.parse(responseText)
-  } catch {
-    throw new Error(`PPSR OAuth2 returned invalid JSON: ${responseText.slice(0, 500)}`)
-  }
-
-  if (!data.access_token) {
-    throw new Error('PPSR OAuth2 response missing access_token')
-  }
-
-  return data.access_token
+  throw new Error(
+    `PPSR OAuth2 token error: All token endpoints failed. Last error: ${lastError}`
+  )
 }
 
 export async function searchByVIN(vin: string): Promise<PPSRSearchResult> {
@@ -113,6 +146,7 @@ export async function searchByVIN(vin: string): Promise<PPSRSearchResult> {
   console.log('[PPSR] Status:', response.status, response.statusText)
 
   if (!response.ok) {
+    console.log('[PPSR] Error response body:', responseText.slice(0, 500))
     throw new Error(
       `PPSR Cloud API error: ${response.status} ${response.statusText} - ${responseText}`
     )
