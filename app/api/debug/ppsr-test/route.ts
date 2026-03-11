@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
  * TEMPORARY DEBUG ROUTE — remove after diagnosing PPSR auth issue.
  * GET /api/debug/ppsr-test
  *
- * Makes the raw PPSR Cloud API call using OAuth2 and returns the full response.
+ * Makes the raw PPSR Cloud OAuth2 token + search call and returns full responses.
  */
 export async function GET() {
   const baseUrl = process.env.PPSR_CLOUD_BASE_URL
@@ -20,85 +20,165 @@ export async function GET() {
     }, { status: 500 })
   }
 
-  // Step 1: Get OAuth2 token
+  // ── Step 1: Get OAuth2 token ──
   const tokenUrl = `${baseUrl}/oauth/token`
-  console.log('[PPSR-DEBUG] Requesting OAuth2 token from', tokenUrl)
 
-  const tokenResponse = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      grant_type: 'client_credentials',
-      client_id: clientId,
-      client_secret: clientSecret,
-    }),
+  const tokenBody = new URLSearchParams({
+    grant_type: 'client_credentials',
+    client_id: clientId,
+    client_secret: clientSecret,
   })
 
+  const tokenBodyString = tokenBody.toString()
+
+  console.log('[PPSR-DEBUG] ── Token Request ──')
+  console.log('[PPSR-DEBUG] URL:', tokenUrl)
+  console.log('[PPSR-DEBUG] Content-Type: application/x-www-form-urlencoded')
+  console.log('[PPSR-DEBUG] Body:', tokenBodyString.replace(/client_secret=[^&]+/, 'client_secret=***'))
+  console.log('[PPSR-DEBUG] client_id:', clientId)
+  console.log('[PPSR-DEBUG] client_secret length:', clientSecret.length)
+
+  let tokenResponse: Response
+  try {
+    tokenResponse = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: tokenBodyString,
+    })
+  } catch (err) {
+    return NextResponse.json({
+      error: 'Token request network error',
+      message: err instanceof Error ? err.message : String(err),
+      tokenUrl,
+    }, { status: 500 })
+  }
+
   const tokenText = await tokenResponse.text()
-  console.log('[PPSR-DEBUG] Token response status:', tokenResponse.status)
+  const tokenHeaders: Record<string, string> = {}
+  tokenResponse.headers.forEach((value, key) => { tokenHeaders[key] = value })
+
+  console.log('[PPSR-DEBUG] ── Token Response ──')
+  console.log('[PPSR-DEBUG] Status:', tokenResponse.status, tokenResponse.statusText)
+  console.log('[PPSR-DEBUG] Headers:', JSON.stringify(tokenHeaders))
+  console.log('[PPSR-DEBUG] Body:', tokenText.slice(0, 500))
+
+  let tokenParsed: unknown = tokenText
+  try {
+    tokenParsed = JSON.parse(tokenText)
+  } catch {
+    // keep as string
+  }
 
   if (!tokenResponse.ok) {
     return NextResponse.json({
       error: 'OAuth2 token request failed',
-      status: tokenResponse.status,
-      body: tokenText,
-    }, { status: 500 })
+      tokenRequest: {
+        url: tokenUrl,
+        contentType: 'application/x-www-form-urlencoded',
+        clientId,
+        clientSecretLength: clientSecret.length,
+      },
+      tokenResponse: {
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+        headers: tokenHeaders,
+        body: tokenParsed,
+      },
+    }, { status: 200 }) // return 200 so we can always see the debug output
   }
 
-  let tokenData: { access_token: string }
-  try {
-    tokenData = JSON.parse(tokenText)
-  } catch {
+  const tokenData = tokenParsed as Record<string, unknown>
+  const accessToken = tokenData?.access_token as string | undefined
+
+  if (!accessToken) {
     return NextResponse.json({
-      error: 'OAuth2 token response is not valid JSON',
-      body: tokenText.slice(0, 500),
-    }, { status: 500 })
+      error: 'Token response missing access_token',
+      tokenResponse: {
+        status: tokenResponse.status,
+        body: tokenParsed,
+      },
+    }, { status: 200 })
   }
 
-  // Step 2: Search by VIN
+  // ── Step 2: Search by VIN ──
   const searchUrl = `${baseUrl}/api/b2b/Middleware/afsa-submit-mv-search`
-  const requestBody = { vin: 'KMHH351EMKU00TEST' }
+  const searchBody = { vin: 'KMHH351EMKU00TEST' }
 
-  console.log('[PPSR-DEBUG] Searching VIN at', searchUrl)
-  const startTime = Date.now()
+  console.log('[PPSR-DEBUG] ── Search Request ──')
+  console.log('[PPSR-DEBUG] URL:', searchUrl)
+  console.log('[PPSR-DEBUG] Authorization: Bearer', accessToken.slice(0, 10) + '...')
+  console.log('[PPSR-DEBUG] Body:', JSON.stringify(searchBody))
 
-  const response = await fetch(searchUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${tokenData.access_token}`,
-    },
-    body: JSON.stringify(requestBody),
-  })
+  const searchStart = Date.now()
 
-  const elapsed = Date.now() - startTime
-  const responseText = await response.text()
-
-  const responseHeaders: Record<string, string> = {}
-  response.headers.forEach((value, key) => {
-    responseHeaders[key] = value
-  })
-
-  let parsedBody: unknown = responseText
+  let searchResponse: Response
   try {
-    parsedBody = JSON.parse(responseText)
+    searchResponse = await fetch(searchUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(searchBody),
+    })
+  } catch (err) {
+    return NextResponse.json({
+      error: 'Search request network error',
+      message: err instanceof Error ? err.message : String(err),
+      searchUrl,
+      tokenObtained: true,
+    }, { status: 200 })
+  }
+
+  const searchElapsed = Date.now() - searchStart
+  const searchText = await searchResponse.text()
+  const searchHeaders: Record<string, string> = {}
+  searchResponse.headers.forEach((value, key) => { searchHeaders[key] = value })
+
+  console.log('[PPSR-DEBUG] ── Search Response ──')
+  console.log('[PPSR-DEBUG] Status:', searchResponse.status, searchResponse.statusText)
+  console.log('[PPSR-DEBUG] Elapsed:', searchElapsed, 'ms')
+  console.log('[PPSR-DEBUG] Headers:', JSON.stringify(searchHeaders))
+  console.log('[PPSR-DEBUG] Body:', searchText.slice(0, 1000))
+
+  let searchParsed: unknown = searchText
+  try {
+    searchParsed = JSON.parse(searchText)
   } catch {
-    // body is not JSON, keep as string
+    // keep as string
   }
 
   return NextResponse.json({
-    debug: 'PPSR Cloud OAuth2 API response',
-    request: {
-      method: 'POST',
-      url: searchUrl,
-      body: requestBody,
+    debug: 'PPSR Cloud OAuth2 full debug output',
+    step1_token: {
+      request: {
+        url: tokenUrl,
+        method: 'POST',
+        contentType: 'application/x-www-form-urlencoded',
+        clientId,
+        clientSecretLength: clientSecret.length,
+      },
+      response: {
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+        headers: tokenHeaders,
+        tokenLength: accessToken.length,
+        tokenPreview: accessToken.slice(0, 20) + '...',
+      },
     },
-    response: {
-      status: response.status,
-      statusText: response.statusText,
-      headers: responseHeaders,
-      body: parsedBody,
-      elapsedMs: elapsed,
+    step2_search: {
+      request: {
+        url: searchUrl,
+        method: 'POST',
+        body: searchBody,
+      },
+      response: {
+        status: searchResponse.status,
+        statusText: searchResponse.statusText,
+        headers: searchHeaders,
+        body: searchParsed,
+        elapsedMs: searchElapsed,
+      },
     },
   }, { status: 200 })
 }
