@@ -1,9 +1,8 @@
 /**
  * PPSR Cloud B2B API client
- * Auth: HTTP Basic Auth (username:password base64-encoded)
- * Endpoint: POST /api/b2b/Middleware/afsa-submit-mv-search (synchronous motor vehicle search)
- * Request: MiddlewareAuSubmitMvSearchApiRequest
- * Response: AuMvSearchResultApiResponseApiResponseCommon
+ * Auth: OAuth2 Client Credentials
+ * Token endpoint: POST /oauth/token
+ * Search endpoint: POST /api/b2b/Middleware/afsa-submit-mv-search (synchronous motor vehicle search)
  */
 
 export interface PPSRSearchResult {
@@ -43,38 +42,66 @@ interface AuMvSearchResultApiResponseCommon {
 
 function getConfig() {
   const baseUrl = process.env.PPSR_CLOUD_BASE_URL
-  const username = process.env.PPSR_CLOUD_USERNAME
-  const password = process.env.PPSR_CLOUD_PASSWORD
+  const clientId = process.env.PPSR_CLIENT_ID
+  const clientSecret = process.env.PPSR_CLIENT_SECRET
 
-  if (!baseUrl || !username || !password) {
+  if (!baseUrl || !clientId || !clientSecret) {
     throw new Error(
-      'PPSR Cloud credentials not configured. Set PPSR_CLOUD_BASE_URL, PPSR_CLOUD_USERNAME, and PPSR_CLOUD_PASSWORD in .env'
+      'PPSR Cloud credentials not configured. Set PPSR_CLOUD_BASE_URL, PPSR_CLIENT_ID, and PPSR_CLIENT_SECRET environment variables.'
     )
   }
 
-  return { baseUrl, username, password }
+  return { baseUrl, clientId, clientSecret }
 }
 
-function getBasicAuthHeader(username: string, password: string): string {
-  const credentials = Buffer.from(`${username}:${password}`).toString('base64')
-  return `Basic ${credentials}`
+async function getAccessToken(baseUrl: string, clientId: string, clientSecret: string): Promise<string> {
+  const tokenUrl = `${baseUrl}/oauth/token`
+
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'client_credentials',
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
+  })
+
+  const responseText = await response.text()
+
+  if (!response.ok) {
+    throw new Error(
+      `PPSR OAuth2 token error: ${response.status} ${response.statusText} - ${responseText}`
+    )
+  }
+
+  let data: { access_token: string }
+  try {
+    data = JSON.parse(responseText)
+  } catch {
+    throw new Error(`PPSR OAuth2 returned invalid JSON: ${responseText.slice(0, 500)}`)
+  }
+
+  if (!data.access_token) {
+    throw new Error('PPSR OAuth2 response missing access_token')
+  }
+
+  return data.access_token
 }
 
 export async function searchByVIN(vin: string): Promise<PPSRSearchResult> {
-  const { baseUrl, username, password } = getConfig()
-  const url = `${baseUrl}/api/b2b/Middleware/afsa-submit-mv-search`
+  const { baseUrl, clientId, clientSecret } = getConfig()
 
+  const accessToken = await getAccessToken(baseUrl, clientId, clientSecret)
+
+  const url = `${baseUrl}/api/b2b/Middleware/afsa-submit-mv-search`
   const requestBody = { vin }
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    Authorization: getBasicAuthHeader(username, password),
+    Authorization: `Bearer ${accessToken}`,
   }
 
-  console.log('[PPSR] ===== RAW REQUEST =====')
   console.log('[PPSR] POST', url)
-  console.log('[PPSR] Headers:', JSON.stringify(headers, null, 2))
-  console.log('[PPSR] Body:', JSON.stringify(requestBody, null, 2))
-  console.log('[PPSR] ========================')
 
   const response = await fetch(url, {
     method: 'POST',
@@ -83,11 +110,7 @@ export async function searchByVIN(vin: string): Promise<PPSRSearchResult> {
   })
 
   const responseText = await response.text()
-  console.log('[PPSR] ===== RAW RESPONSE =====')
   console.log('[PPSR] Status:', response.status, response.statusText)
-  console.log('[PPSR] Response Headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2))
-  console.log('[PPSR] Response Body:', responseText)
-  console.log('[PPSR] ===========================')
 
   if (!response.ok) {
     throw new Error(
