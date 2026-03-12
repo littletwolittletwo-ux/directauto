@@ -56,16 +56,44 @@ function getGreeting(): string {
 }
 
 export default async function AdminDashboardPage() {
-  const session = await getServerSession(authOptions)
+  let session;
+  try {
+    session = await getServerSession(authOptions)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return <div className="p-8 text-red-600 font-mono text-sm whitespace-pre-wrap">SESSION ERROR: {msg}</div>
+  }
   if (!session) redirect("/login")
 
-  const [vehicles, totalCount] = await Promise.all([
-    prisma.vehicle.findMany({
-      orderBy: { submittedAt: "desc" },
-      take: 100,
-    }),
-    prisma.vehicle.count(),
-  ])
+  let vehicles: Awaited<ReturnType<typeof prisma.vehicle.findMany>> = []
+  let totalCount = 0
+  let dbError = ""
+
+  try {
+    const [v, c] = await Promise.all([
+      prisma.vehicle.findMany({
+        orderBy: { submittedAt: "desc" },
+        take: 100,
+      }),
+      prisma.vehicle.count(),
+    ])
+    vehicles = v
+    totalCount = c
+  } catch (err) {
+    dbError = err instanceof Error ? err.stack || err.message : String(err)
+    console.error('DB QUERY ERROR:', dbError)
+  }
+
+  if (dbError) {
+    return (
+      <div className="p-8 space-y-4">
+        <h1 className="text-xl font-bold text-red-600">Database Query Failed</h1>
+        <pre className="bg-red-50 border border-red-200 rounded p-4 text-sm text-red-800 whitespace-pre-wrap overflow-auto max-h-96">{dbError}</pre>
+        <p className="text-sm text-gray-600">Session: {session?.user?.email || "unknown"}</p>
+        <p className="text-sm text-gray-600">DATABASE_URL set: {!!process.env.DATABASE_URL ? "yes" : "no"}</p>
+      </div>
+    )
+  }
 
   console.log('DB QUERY RESULT:', vehicles.length, totalCount)
 
