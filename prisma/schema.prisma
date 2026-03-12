@@ -55,6 +55,7 @@ model Vehicle {
   identity           SellerIdentity?
   ownership          OwnershipRecord?
   ppsrCheck          PPSRCheck?
+  saleAgreement      SaleAgreement?
   documents          Document[]
   auditLogs          AuditLog[]
 }
@@ -154,4 +155,22 @@ model Settings {
   contactEmail   String?
   notifyOnSubmit Boolean @default(true)
   notifyOnPPSR   Boolean @default(true)
+}
+
+model SaleAgreement {
+  id            String    @id @default(uuid())
+  vehicleId     String    @unique
+  vehicle       Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  salePrice     Float
+  buyerName     String
+  buyerEmail    String
+  buyerPhone    String?
+  buyerAddress  String?
+  agreementDate DateTime  @default(now())
+  sentAt        DateTime?
+  sentById      String?
+  status        String    @default("DRAFT")
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }

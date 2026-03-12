@@ -181,53 +181,72 @@ export async function sendPPSRFlagAlert({
   })
 }
 
-export async function sendSaleAgreement({
+export async function sendSaleAgreementEmail({
   to,
-  sellerName,
+  buyerName,
   year,
   make,
   model,
-  token,
+  salePrice,
   dealershipName,
   contactEmail,
+  pdfBuffer,
+  pdfFilename,
 }: {
   to: string
-  sellerName: string
+  buyerName: string
   year: number
   make: string
   model: string
-  token: string
+  salePrice: number
   dealershipName: string
   contactEmail?: string
+  pdfBuffer: Buffer
+  pdfFilename: string
 }) {
   const transporter = getTransporter()
-  const agreementUrl = `https://directauto.vercel.app/sale-agreement/${token}`
 
   if (!transporter) {
-    console.log('[MAILER] Sale agreement email (SMTP not configured):', { to, token, agreementUrl })
+    console.log('[MAILER] Sale agreement email (SMTP not configured):', { to, pdfFilename })
     return
   }
+
+  const formattedPrice = salePrice.toLocaleString('en-AU', { minimumFractionDigits: 2 })
 
   await transporter.sendMail({
     from: process.env.SMTP_FROM,
     to,
-    subject: `Sale Agreement - ${year} ${make} ${model}`,
+    subject: `Vehicle Sale Agreement — ${year} ${make} ${model} | ${dealershipName}`,
     html: `
       <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
         ${emailHeader(dealershipName)}
         <div style="padding: 32px; background: white;">
           <h2 style="color: #1e293b;">Sale Agreement</h2>
-          <p>Hi ${sellerName},</p>
-          <p style="color: #475569;">${dealershipName} would like to purchase your <strong>${year} ${make} ${model}</strong>. Please review and sign the sale agreement.</p>
-          <div style="margin: 24px 0; text-align: center;">
-            <a href="${agreementUrl}" style="background: #1e40af; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600;">Review & Sign Agreement →</a>
-          </div>
-          <p style="color: #64748b; font-size: 13px;">If the button doesn't work, copy and paste this link into your browser:</p>
-          <p style="color: #64748b; font-size: 12px; word-break: break-all;">${agreementUrl}</p>
+          <p>Hi ${buyerName},</p>
+          <p style="color: #475569;">Please find attached the sale agreement for the <strong>${year} ${make} ${model}</strong> at a price of <strong>AUD $${formattedPrice}</strong>.</p>
+          <p style="color: #475569;">Please review the agreement, sign it, and return it to us at your earliest convenience.</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 0; color: #64748b;">Vehicle</td>
+              <td style="padding: 8px 0; font-weight: 600;">${year} ${make} ${model}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 0; color: #64748b;">Sale Price</td>
+              <td style="padding: 8px 0; font-weight: 600;">AUD $${formattedPrice}</td>
+            </tr>
+          </table>
+          <p style="color: #475569;">If you have any questions, please don't hesitate to contact us.</p>
         </div>
         ${emailFooter(contactEmail)}
       </div>
     `,
+    attachments: [
+      {
+        filename: pdfFilename,
+        content: pdfBuffer,
+        contentType: 'application/pdf',
+      },
+    ],
   })
 }
 

@@ -52,6 +52,7 @@ import { DocumentPreview } from "@/components/documents/DocumentPreview"
 import { DocumentUploader } from "@/components/documents/DocumentUploader"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { SaleAgreementPanel } from "@/components/admin/SaleAgreementPanel"
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -1341,7 +1342,20 @@ export default function VehicleDetailPage() {
             </Card>
           )}
 
-          {/* Sale Agreement — disabled until DB columns are added */}
+          {/* Sale Agreement Panel — only for approved vehicles */}
+          {vehicle.status === "APPROVED" && (
+            <SaleAgreementPanel
+              vehicleId={vehicleId}
+              vehicleInfo={{
+                sellerName: vehicle.sellerName,
+                sellerEmail: vehicle.sellerEmail,
+                sellerPrice: vehicle.sellerPrice,
+                year: vehicle.year,
+                make: vehicle.make,
+                model: vehicle.model,
+              }}
+            />
+          )}
 
           {/* Quick contact */}
           <Card>
