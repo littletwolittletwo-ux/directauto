@@ -67,6 +67,8 @@ export default async function AdminDashboardPage() {
     prisma.vehicle.count(),
   ])
 
+  console.log('DB QUERY RESULT:', vehicles.length, totalCount)
+
   const now = new Date()
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const weekStart = new Date(todayStart)
@@ -147,6 +149,11 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* TEMPORARY DEBUG — remove after confirming data loads */}
+      <div className="rounded bg-yellow-100 border border-yellow-300 p-3 text-sm font-mono">
+        DB count: {totalCount} | Vehicles loaded: {vehicles.length} | Session: {session?.user?.email || "none"}
+      </div>
+
       <div>
         <h1 className="text-xl font-semibold text-foreground">
           {getGreeting()}, {userName} -- here&apos;s today at a glance
