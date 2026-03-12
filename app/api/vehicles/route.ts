@@ -10,7 +10,9 @@ import { logAudit } from '@/lib/audit'
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
+    console.log('[VEHICLES_GET] Session:', session ? `user=${(session.user as Record<string, unknown>)?.email}` : 'NULL')
     if (!session) {
+      console.log('[VEHICLES_GET] Returning 401 — no session. Cookies:', request.headers.get('cookie')?.split(';').map(c => c.trim().split('=')[0]).join(', '))
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
