@@ -323,9 +323,9 @@ function SaleAgreementDocument({ data }: { data: SaleAgreementData }) {
         {/* SIGNED banner */}
         {data.isSigned && (
           <View style={styles.signedBanner}>
-            <Text style={styles.signedBannerText}>SIGNED</Text>
+            <Text style={styles.signedBannerText}>SELLER SIGNED</Text>
             <Text style={styles.signedBannerDate}>
-              Electronically signed on {data.signedAt}
+              Electronically signed by seller on {data.signedAt}
             </Text>
           </View>
         )}
@@ -335,11 +335,6 @@ function SaleAgreementDocument({ data }: { data: SaleAgreementData }) {
         <View style={styles.sigBlock}>
           <View style={styles.sigItem}>
             <Text style={styles.sigLabel}>Seller</Text>
-            <View style={styles.sigLine} />
-            <Text style={styles.sigDateLabel}>Date: _____________</Text>
-          </View>
-          <View style={styles.sigItem}>
-            <Text style={styles.sigLabel}>Buyer</Text>
             {data.isSigned && data.signerName ? (
               <>
                 <Text style={styles.sigValue}>{data.signerName}</Text>
@@ -351,6 +346,11 @@ function SaleAgreementDocument({ data }: { data: SaleAgreementData }) {
                 <Text style={styles.sigDateLabel}>Date: _____________</Text>
               </>
             )}
+          </View>
+          <View style={styles.sigItem}>
+            <Text style={styles.sigLabel}>Buyer (Direct Auto Wholesale)</Text>
+            <View style={styles.sigLine} />
+            <Text style={styles.sigDateLabel}>Date: _____________</Text>
           </View>
           <View style={styles.sigItem}>
             <Text style={styles.sigLabel}>Witness</Text>
