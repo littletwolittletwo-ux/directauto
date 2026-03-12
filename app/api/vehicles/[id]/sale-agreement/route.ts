@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -80,7 +81,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Vehicle not found.' }, { status: 404 })
     }
 
-    // Upsert the agreement
+    // Upsert the agreement — generate signing token on create
+    const signingToken = crypto.randomUUID()
     const agreement = await prisma.saleAgreement.upsert({
       where: { vehicleId: id },
       create: {
@@ -92,6 +94,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         buyerAddress: buyerAddress || null,
         notes: notes || null,
         status: 'DRAFT',
+        signingToken,
       },
       update: {
         salePrice: parseFloat(String(salePrice)),

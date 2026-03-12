@@ -1,16 +1,15 @@
+import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { logAudit } from '@/lib/audit'
-import { generateSaleAgreementPdf } from '@/lib/sale-agreement-pdf'
-import { sendSaleAgreementEmail } from '@/lib/mailer'
 
 interface RouteParams {
   params: Promise<{ id: string }>
 }
 
-// POST: Generate PDF and email sale agreement to buyer
+// POST: Generate signing link and mark agreement as SENT
 export async function POST(_request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getServerSession(authOptions)
@@ -37,28 +36,8 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Generate PDF
-    const pdfBuffer = await generateSaleAgreementPdf(id)
-
-    // Get settings for email template
-    const settings = await prisma.settings.findUnique({
-      where: { id: 'singleton' },
-    })
-    const dealershipName = settings?.dealershipName || 'Direct Auto Wholesale'
-
-    // Send email with PDF attachment
-    await sendSaleAgreementEmail({
-      to: vehicle.saleAgreement.buyerEmail,
-      buyerName: vehicle.saleAgreement.buyerName,
-      year: vehicle.year,
-      make: vehicle.make,
-      model: vehicle.model,
-      salePrice: vehicle.saleAgreement.salePrice,
-      dealershipName,
-      contactEmail: settings?.contactEmail || undefined,
-      pdfBuffer,
-      pdfFilename: `Sale-Agreement-${vehicle.vin}.pdf`,
-    })
+    // Ensure signing token exists (generate if missing from older records)
+    const signingToken = vehicle.saleAgreement.signingToken || crypto.randomUUID()
 
     // Update status to SENT
     const updated = await prisma.saleAgreement.update({
@@ -67,6 +46,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
         status: 'SENT',
         sentAt: new Date(),
         sentById: userId,
+        signingToken,
       },
     })
 
@@ -75,16 +55,19 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       userId,
       action: 'SALE_AGREEMENT_SENT',
       details: {
-        sentTo: vehicle.saleAgreement.buyerEmail,
+        buyerEmail: vehicle.saleAgreement.buyerEmail,
         salePrice: vehicle.saleAgreement.salePrice,
       },
     })
 
-    return NextResponse.json(updated)
+    const baseUrl = process.env.NEXTAUTH_URL || 'https://directauto.vercel.app'
+    const signingLink = `${baseUrl}/sign/${signingToken}`
+
+    return NextResponse.json({ agreement: updated, signingLink })
   } catch (err) {
     console.error('[SALE-AGREEMENT] Send error:', err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Failed to send sale agreement' },
+      { error: err instanceof Error ? err.message : 'Failed to generate signing link' },
       { status: 500 }
     )
   }

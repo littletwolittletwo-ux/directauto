@@ -170,6 +170,10 @@ model SaleAgreement {
   sentAt        DateTime?
   sentById      String?
   status        String    @default("DRAFT")
+  signingToken  String?   @unique
+  signedAt      DateTime?
+  signerIp      String?
+  signerName    String?
   notes         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

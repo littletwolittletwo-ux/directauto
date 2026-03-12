@@ -32,6 +32,8 @@ export default withAuth(
           pathname.startsWith('/login') ||
           pathname.startsWith('/api/auth') ||
           pathname.startsWith('/api/debug/') ||
+          pathname.startsWith('/sign') ||
+          pathname.startsWith('/api/sign/') ||
           pathname === '/'
         ) {
           return true
@@ -50,5 +52,6 @@ export const config = {
     '/api/:path*',
     '/login',
     '/submit/:path*',
+    '/sign/:path*',
   ],
 }
