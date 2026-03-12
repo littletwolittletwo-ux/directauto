@@ -6,7 +6,6 @@ import Link from "next/link"
 import { format } from "date-fns"
 import { Plus, Link2, Download, ArrowRight } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { buttonVariants } from "@/components/ui/button"
 import { StatsCards } from "@/components/admin/StatsCards"
 import {
   SubmissionsBarChart,
@@ -257,9 +256,7 @@ export default async function AdminDashboardPage() {
                         <TableCell>
                           <Link
                             href={`/admin/vehicles/${v.id}`}
-                            className={cn(
-                              buttonVariants({ variant: "ghost", size: "sm" })
-                            )}
+                            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:bg-accent hover:text-accent-foreground h-9 px-3"
                           >
                             Review
                             <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -281,7 +278,7 @@ export default async function AdminDashboardPage() {
           <CardContent className="space-y-2">
             <Link
               href="/admin/vehicles/new"
-              className={cn(buttonVariants(), "w-full justify-start")}
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full justify-start"
             >
               <Plus className="mr-2 h-4 w-4" />
               Add Vehicle Manually
@@ -293,10 +290,7 @@ export default async function AdminDashboardPage() {
               href="/api/export/csv"
               target="_blank"
               rel="noopener noreferrer"
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "w-full justify-start"
-              )}
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full justify-start"
             >
               <Download className="mr-2 h-4 w-4" />
               Export All CSV
@@ -304,10 +298,7 @@ export default async function AdminDashboardPage() {
 
             <Link
               href="/admin/vehicles"
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "w-full justify-start"
-              )}
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full justify-start"
             >
               <Link2 className="mr-2 h-4 w-4" />
               View All Vehicles

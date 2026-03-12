@@ -23,7 +23,6 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table"
-import { buttonVariants } from "@/components/ui/button"
 import { StatusBadge } from "@/components/admin/StatusBadge"
 import { RiskBadge } from "@/components/admin/RiskBadge"
 import { VehicleActionCell } from "@/components/admin/VehicleActionCell"
@@ -187,10 +186,7 @@ export default async function VehiclesListPage({
           href={csvUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className={cn(
-            buttonVariants({ variant: "outline", size: "sm" }),
-            "inline-flex items-center"
-          )}
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
         >
           <Download className="mr-1.5 h-3.5 w-3.5" />
           Export CSV
@@ -337,20 +333,14 @@ export default async function VehiclesListPage({
           {page > 1 ? (
             <Link
               href={buildUrl(params, { page: String(page - 1) })}
-              className={cn(
-                buttonVariants({ variant: "outline", size: "sm" }),
-                "inline-flex items-center"
-              )}
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
             >
               <ChevronLeft className="mr-1 h-4 w-4" />
               Previous
             </Link>
           ) : (
             <span
-              className={cn(
-                buttonVariants({ variant: "outline", size: "sm" }),
-                "pointer-events-none opacity-50 inline-flex items-center"
-              )}
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors border border-input bg-background h-9 px-3 pointer-events-none opacity-50"
             >
               <ChevronLeft className="mr-1 h-4 w-4" />
               Previous
@@ -362,20 +352,14 @@ export default async function VehiclesListPage({
           {page < totalPages ? (
             <Link
               href={buildUrl(params, { page: String(page + 1) })}
-              className={cn(
-                buttonVariants({ variant: "outline", size: "sm" }),
-                "inline-flex items-center"
-              )}
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
             >
               Next
               <ChevronRight className="ml-1 h-4 w-4" />
             </Link>
           ) : (
             <span
-              className={cn(
-                buttonVariants({ variant: "outline", size: "sm" }),
-                "pointer-events-none opacity-50 inline-flex items-center"
-              )}
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors border border-input bg-background h-9 px-3 pointer-events-none opacity-50"
             >
               Next
               <ChevronRight className="ml-1 h-4 w-4" />
