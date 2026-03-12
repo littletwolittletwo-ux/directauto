@@ -50,12 +50,6 @@ model Vehicle {
   sellerSignature    String?
   signedAt           DateTime?
   submittedAt        DateTime      @default(now())
-  purchasePrice           Float?
-  saleAgreementToken      String?   @unique
-  saleAgreementSentAt     DateTime?
-  saleAgreementSignedAt   DateTime?
-  saleAgreementSignature  String?
-  saleAgreementStatus     String    @default("NOT_SENT")
   createdById        String?
   createdBy          User?         @relation("CreatedBy", fields: [createdById], references: [id])
   identity           SellerIdentity?

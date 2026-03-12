@@ -73,10 +73,6 @@ interface Vehicle {
   submissionToken: string | null
   ipAddress: string | null
   status: string
-  purchasePrice: number | null
-  saleAgreementStatus: string
-  saleAgreementSentAt: string | null
-  saleAgreementSignedAt: string | null
   riskScore: number
   riskFlags: string[]
   adminNotes: any[]
@@ -174,9 +170,6 @@ export default function VehicleDetailPage() {
   // Link generation
   const [generatingLink, setGeneratingLink] = useState(false)
 
-  // Sale agreement
-  const [salePrice, setSalePrice] = useState("")
-  const [sendingSaleAgreement, setSendingSaleAgreement] = useState(false)
 
   const fetchVehicle = useCallback(async () => {
     try {
@@ -367,31 +360,6 @@ export default function VehicleDetailPage() {
 
   function handleDownloadPDF() {
     window.open(`/api/export/pdf/${vehicleId}`, "_blank")
-  }
-
-  async function handleSendSaleAgreement() {
-    if (!salePrice || parseFloat(salePrice) <= 0) {
-      toast.error("Please enter a valid purchase price")
-      return
-    }
-    setSendingSaleAgreement(true)
-    try {
-      const res = await fetch(`/api/vehicles/${vehicleId}/send-sale-agreement`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ purchasePrice: salePrice }),
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || "Failed to send sale agreement")
-      }
-      toast.success("Sale agreement sent to seller")
-      fetchVehicle()
-    } catch (err: any) {
-      toast.error(err.message || "Failed to send sale agreement")
-    } finally {
-      setSendingSaleAgreement(false)
-    }
   }
 
   async function handleIdentityAction(verified: boolean) {
@@ -1373,81 +1341,7 @@ export default function VehicleDetailPage() {
             </Card>
           )}
 
-          {/* Sale Agreement */}
-          {isAdmin && vehicle.status === "APPROVED" && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold">Sale Agreement</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {vehicle.saleAgreementStatus === "SIGNED" ? (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-1.5 text-green-600 font-medium text-sm">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Agreement Signed
-                    </div>
-                    {vehicle.saleAgreementSignedAt && (
-                      <p className="text-xs text-muted-foreground">
-                        Signed {format(new Date(vehicle.saleAgreementSignedAt), "MMM d, yyyy 'at' h:mm a")}
-                      </p>
-                    )}
-                    {vehicle.purchasePrice && (
-                      <p className="text-xs text-muted-foreground">
-                        Purchase price: ${vehicle.purchasePrice.toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                ) : vehicle.saleAgreementStatus === "SENT" ? (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-1.5 text-blue-600 font-medium text-sm">
-                      <Send className="h-4 w-4" />
-                      Agreement Sent
-                    </div>
-                    {vehicle.saleAgreementSentAt && (
-                      <p className="text-xs text-muted-foreground">
-                        Sent {format(new Date(vehicle.saleAgreementSentAt), "MMM d, yyyy 'at' h:mm a")}
-                      </p>
-                    )}
-                    {vehicle.purchasePrice && (
-                      <p className="text-xs text-muted-foreground">
-                        Purchase price: ${vehicle.purchasePrice.toLocaleString()}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      Awaiting seller signature...
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Purchase Price ($)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="e.g. 15000"
-                        value={salePrice}
-                        onChange={(e) => setSalePrice(e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
-                    <Button
-                      className="w-full bg-blue-600 hover:bg-blue-700"
-                      onClick={handleSendSaleAgreement}
-                      disabled={sendingSaleAgreement || !salePrice}
-                    >
-                      {sendingSaleAgreement ? (
-                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Send className="mr-1.5 h-4 w-4" />
-                      )}
-                      Send Sale Agreement
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          {/* Sale Agreement — disabled until DB columns are added */}
 
           {/* Quick contact */}
           <Card>
