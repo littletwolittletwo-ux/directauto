@@ -139,6 +139,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       success: true,
       confirmationNumber: agreement.vehicle.confirmationNumber,
       signedAt: updated.signedAt,
+      pdfUrl: `/api/sign/${token}/pdf`,
     })
   } catch (err) {
     console.error('[SIGN] POST error:', err)

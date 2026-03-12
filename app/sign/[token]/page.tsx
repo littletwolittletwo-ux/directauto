@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react"
 import { useParams } from "next/navigation"
-import { CheckCircle2, Loader2, AlertTriangle, FileText } from "lucide-react"
+import { CheckCircle2, Loader2, AlertTriangle, FileText, Download } from "lucide-react"
 
 interface AgreementData {
   status: string
@@ -48,6 +48,7 @@ export default function SigningPage() {
   const [checks, setChecks] = useState({ read: false, agree: false, confirm: false })
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
+  const [pdfUrl, setPdfUrl] = useState("")
 
   const fetchData = useCallback(async () => {
     try {
@@ -63,7 +64,10 @@ export default function SigningPage() {
       }
       const d = await res.json()
       setData(d)
-      if (d.status === "SIGNED") setStep("complete")
+      if (d.status === "SIGNED") {
+        setStep("complete")
+        setPdfUrl(`/api/sign/${token}/pdf`)
+      }
     } catch {
       setError("Failed to connect. Please try again.")
     } finally {
@@ -141,6 +145,7 @@ export default function SigningPage() {
         signerName: signerName.trim(),
         signedAt: result.signedAt,
       })
+      setPdfUrl(result.pdfUrl || `/api/sign/${token}/pdf`)
       setStep("complete")
     } catch {
       setSubmitError("Network error. Please try again.")
@@ -514,6 +519,18 @@ export default function SigningPage() {
             />
             <Row label="Reference" value={data.vehicle.confirmationNumber} mono />
           </div>
+
+          {pdfUrl && (
+            <a
+              href={pdfUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold text-sm hover:bg-blue-700 transition-colors"
+            >
+              <Download className="h-4 w-4" />
+              Download Signed Agreement (PDF)
+            </a>
+          )}
 
           <div className="space-y-3 text-sm text-gray-500">
             <p>

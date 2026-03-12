@@ -100,6 +100,25 @@ const styles = StyleSheet.create({
     borderColor: "#e2e8f0",
     marginBottom: 10,
   },
+  signedBanner: {
+    backgroundColor: "#16a34a",
+    color: "#ffffff",
+    padding: 12,
+    textAlign: "center",
+    borderRadius: 4,
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  signedBannerText: {
+    fontSize: 14,
+    fontFamily: "Helvetica-Bold",
+    letterSpacing: 1,
+  },
+  signedBannerDate: {
+    fontSize: 9,
+    marginTop: 2,
+    color: "#dcfce7",
+  },
   sigBlock: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -122,7 +141,26 @@ const styles = StyleSheet.create({
     height: 24,
     marginBottom: 2,
   },
+  sigValue: {
+    fontSize: 14,
+    fontFamily: "Helvetica-Oblique",
+    color: "#1e293b",
+    height: 24,
+    paddingTop: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "#94a3b8",
+    marginBottom: 2,
+  },
+  sigDateValue: {
+    fontSize: 8,
+    color: "#475569",
+  },
   sigDateLabel: { fontSize: 7, color: "#94a3b8" },
+  sigIpNote: {
+    fontSize: 7,
+    color: "#94a3b8",
+    marginTop: 4,
+  },
   footer: {
     position: "absolute",
     bottom: 20,
@@ -160,6 +198,11 @@ interface SaleAgreementData {
   ppsrCheckedAt: string | null
   ppsrResult: string
   generatedDate: string
+  // Signing fields
+  isSigned: boolean
+  signerName: string | null
+  signedAt: string | null
+  signerIp: string | null
 }
 
 function formatCurrency(amount: number): string {
@@ -277,6 +320,16 @@ function SaleAgreementDocument({ data }: { data: SaleAgreementData }) {
           <Text>Result: {data.ppsrResult}</Text>
         </View>
 
+        {/* SIGNED banner */}
+        {data.isSigned && (
+          <View style={styles.signedBanner}>
+            <Text style={styles.signedBannerText}>SIGNED</Text>
+            <Text style={styles.signedBannerDate}>
+              Electronically signed on {data.signedAt}
+            </Text>
+          </View>
+        )}
+
         {/* Signatures */}
         <Text style={styles.sectionTitle}>SIGNATURES</Text>
         <View style={styles.sigBlock}>
@@ -287,8 +340,17 @@ function SaleAgreementDocument({ data }: { data: SaleAgreementData }) {
           </View>
           <View style={styles.sigItem}>
             <Text style={styles.sigLabel}>Buyer</Text>
-            <View style={styles.sigLine} />
-            <Text style={styles.sigDateLabel}>Date: _____________</Text>
+            {data.isSigned && data.signerName ? (
+              <>
+                <Text style={styles.sigValue}>{data.signerName}</Text>
+                <Text style={styles.sigDateValue}>Date: {data.signedAt}</Text>
+              </>
+            ) : (
+              <>
+                <View style={styles.sigLine} />
+                <Text style={styles.sigDateLabel}>Date: _____________</Text>
+              </>
+            )}
           </View>
           <View style={styles.sigItem}>
             <Text style={styles.sigLabel}>Witness</Text>
@@ -301,6 +363,13 @@ function SaleAgreementDocument({ data }: { data: SaleAgreementData }) {
             <Text style={styles.sigDateLabel}>Date: _____________</Text>
           </View>
         </View>
+
+        {/* Digital signature audit trail */}
+        {data.isSigned && (
+          <Text style={styles.sigIpNote}>
+            Digital signature recorded from IP: {data.signerIp || "unknown"}
+          </Text>
+        )}
 
         {/* Footer */}
         <View style={styles.footer}>
@@ -377,6 +446,16 @@ export async function generateSaleAgreementPdf(
       month: "long",
       year: "numeric",
     }),
+    isSigned: vehicle.saleAgreement.status === "SIGNED",
+    signerName: vehicle.saleAgreement.signerName || null,
+    signedAt: vehicle.saleAgreement.signedAt
+      ? vehicle.saleAgreement.signedAt.toLocaleDateString("en-AU", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })
+      : null,
+    signerIp: vehicle.saleAgreement.signerIp || null,
   }
 
   const buffer = await renderToBuffer(
