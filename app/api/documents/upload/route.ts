@@ -72,7 +72,9 @@ export async function POST(request: NextRequest) {
       storagePath = result.storagePath
     }
 
-    // Create Document record
+    console.log('[DOCUMENT_UPLOAD] Stored at:', storagePath)
+
+    // Create Document record — storagePath is the full blob URL when using Vercel Blob
     const doc = await prisma.document.create({
       data: {
         vehicleId,
@@ -83,6 +85,8 @@ export async function POST(request: NextRequest) {
         sizeBytes: file.size,
       },
     })
+
+    console.log('[DOCUMENT_UPLOAD] DB record created:', doc.id, '| storagePath:', doc.storagePath)
 
     return NextResponse.json({
       documentId: doc.id,

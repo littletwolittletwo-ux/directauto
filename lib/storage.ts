@@ -40,7 +40,6 @@ export function saveFile(
 ): { storagePath: string; fileName: string } {
   const ext = getExtension(mimeType)
   const fileName = `${uuidv4()}${ext}`
-  // Ensure directory exists (side effect)
   getVehicleUploadPath(vehicleId, category)
   const storagePath = path.join('vehicles', vehicleId, category, fileName)
   const fullPath = path.join(getUploadDir(), storagePath)
@@ -52,7 +51,7 @@ export function saveFile(
 
 /**
  * Upload file to Vercel Blob storage.
- * Returns the blob URL as storagePath.
+ * Returns the full blob URL as storagePath.
  */
 export async function saveToBlobStorage(
   buffer: Buffer,
@@ -65,19 +64,36 @@ export async function saveToBlobStorage(
   const fileName = `${uuidv4()}${ext}`
   const blobPath = `vehicles/${vehicleId}/${category}/${fileName}`
 
+  const token = process.env.BLOB_READ_WRITE_TOKEN
+  if (!token) {
+    throw new Error('BLOB_READ_WRITE_TOKEN is not set')
+  }
+
+  console.log('[BLOB_STORAGE] Uploading to:', blobPath)
+  console.log('[BLOB_STORAGE] Token present:', !!token, '| Token length:', token.length)
+
   const blob = await put(blobPath, buffer, {
     access: 'public',
     contentType: mimeType,
+    token,
   })
+
+  console.log('[BLOB_STORAGE] Upload success, blob URL:', blob.url)
 
   return { storagePath: blob.url, fileName }
 }
 
 /**
- * Returns true if BLOB_READ_WRITE_TOKEN is configured (i.e. use Vercel Blob).
+ * Returns true if BLOB_READ_WRITE_TOKEN is configured.
  */
 export function useBlobStorage(): boolean {
-  return !!process.env.BLOB_READ_WRITE_TOKEN
+  const hasToken = !!process.env.BLOB_READ_WRITE_TOKEN
+  if (hasToken) {
+    console.log('[STORAGE] Using Vercel Blob storage')
+  } else {
+    console.log('[STORAGE] Using local storage - no BLOB token')
+  }
+  return hasToken
 }
 
 export function getFilePath(storagePath: string): string {
