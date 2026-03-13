@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { saveFile, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from '@/lib/storage'
+import { saveFile, saveToBlobStorage, useBlobStorage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from '@/lib/storage'
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,15 +47,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Save file to storage
     const buffer = Buffer.from(await file.arrayBuffer())
-    const { storagePath } = saveFile(
-      buffer,
-      vehicleId,
-      category,
-      file.name,
-      file.type
-    )
+    let storagePath: string
+
+    if (useBlobStorage()) {
+      // Upload to Vercel Blob (production)
+      const result = await saveToBlobStorage(
+        buffer,
+        vehicleId,
+        category,
+        file.name,
+        file.type
+      )
+      storagePath = result.storagePath
+    } else {
+      // Fallback to local filesystem (development)
+      const result = saveFile(
+        buffer,
+        vehicleId,
+        category,
+        file.name,
+        file.type
+      )
+      storagePath = result.storagePath
+    }
 
     // Create Document record
     const doc = await prisma.document.create({

@@ -1,8 +1,19 @@
 import fs from 'fs'
 import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
+import { put } from '@vercel/blob'
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads'
+
+function getExtension(mimeType: string): string {
+  const map: Record<string, string> = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/webp': '.webp',
+    'application/pdf': '.pdf',
+  }
+  return map[mimeType] || '.bin'
+}
 
 export function getUploadDir(): string {
   const dir = path.resolve(UPLOAD_DIR)
@@ -39,6 +50,36 @@ export function saveFile(
   return { storagePath, fileName }
 }
 
+/**
+ * Upload file to Vercel Blob storage.
+ * Returns the blob URL as storagePath.
+ */
+export async function saveToBlobStorage(
+  buffer: Buffer,
+  vehicleId: string,
+  category: string,
+  originalName: string,
+  mimeType: string
+): Promise<{ storagePath: string; fileName: string }> {
+  const ext = getExtension(mimeType)
+  const fileName = `${uuidv4()}${ext}`
+  const blobPath = `vehicles/${vehicleId}/${category}/${fileName}`
+
+  const blob = await put(blobPath, buffer, {
+    access: 'public',
+    contentType: mimeType,
+  })
+
+  return { storagePath: blob.url, fileName }
+}
+
+/**
+ * Returns true if BLOB_READ_WRITE_TOKEN is configured (i.e. use Vercel Blob).
+ */
+export function useBlobStorage(): boolean {
+  return !!process.env.BLOB_READ_WRITE_TOKEN
+}
+
 export function getFilePath(storagePath: string): string {
   return path.join(getUploadDir(), storagePath)
 }
@@ -48,16 +89,6 @@ export function deleteFile(storagePath: string): void {
   if (fs.existsSync(fullPath)) {
     fs.unlinkSync(fullPath)
   }
-}
-
-function getExtension(mimeType: string): string {
-  const map: Record<string, string> = {
-    'image/jpeg': '.jpg',
-    'image/png': '.png',
-    'image/webp': '.webp',
-    'application/pdf': '.pdf',
-  }
-  return map[mimeType] || '.bin'
 }
 
 export const ALLOWED_MIME_TYPES = [

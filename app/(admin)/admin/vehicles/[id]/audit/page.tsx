@@ -8,6 +8,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AuditTimeline } from "@/components/admin/AuditTimeline"
+import { InspectionUpload } from "@/components/admin/InspectionUpload"
+import { InspectionNotes } from "@/components/admin/InspectionNotes"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -83,6 +85,20 @@ export default function VehicleAuditPage() {
         </div>
       </div>
 
+      {/* Vehicle Inspection section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Vehicle Inspection</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <InspectionUpload vehicleId={vehicleId} />
+            <InspectionNotes vehicleId={vehicleId} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Audit Timeline */}
       <Card>
         <CardHeader>
           <CardTitle>

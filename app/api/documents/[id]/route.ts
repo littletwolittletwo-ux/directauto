@@ -12,6 +12,8 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
+    const { searchParams } = new URL(request.url)
+    const isDownload = searchParams.get('download') === 'true'
 
     const document = await prisma.document.findUnique({
       where: { id },
@@ -41,6 +43,18 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     }
 
+    const disposition = isDownload ? 'attachment' : 'inline'
+
+    // If storagePath is a blob URL (Vercel Blob), redirect to it
+    if (document.storagePath.startsWith('https://')) {
+      const redirectUrl = new URL(document.storagePath)
+      if (isDownload) {
+        redirectUrl.searchParams.set('download', '1')
+      }
+      return NextResponse.redirect(redirectUrl.toString(), 302)
+    }
+
+    // Local filesystem fallback
     const filePath = getFilePath(document.storagePath)
 
     if (!fs.existsSync(filePath)) {
@@ -56,7 +70,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     headers.set('Content-Type', document.mimeType)
     headers.set(
       'Content-Disposition',
-      `inline; filename="${document.originalName}"`
+      `${disposition}; filename="${document.originalName}"`
     )
     headers.set('Content-Length', String(fileBuffer.length))
     headers.set('Cache-Control', 'private, max-age=3600')

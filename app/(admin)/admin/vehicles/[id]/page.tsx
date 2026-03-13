@@ -19,6 +19,9 @@ import {
   Loader2,
   Shield,
   Send,
+  Download,
+  ExternalLink,
+  ClipboardCheck,
 } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -1132,6 +1135,129 @@ export default function VehicleDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Card 7: Submitted Documents */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Submitted Documents</CardTitle>
+                <span className="text-xs text-muted-foreground">
+                  {vehicle.documents.length} file{vehicle.documents.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {vehicle.documents.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No documents uploaded yet.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {(() => {
+                    const CATEGORY_LABELS: Record<string, string> = {
+                      "licence-front": "Licence Front",
+                      "licence-back": "Licence Back",
+                      "selfie": "Selfie",
+                      "ownership": "Ownership Documents",
+                      "ppsr_certificate": "PPSR Certificate",
+                      "inspection": "Inspection Documents",
+                      "other": "Other",
+                    }
+                    const grouped = vehicle.documents.reduce(
+                      (acc: Record<string, typeof vehicle.documents>, doc) => {
+                        const cat = doc.category || "other"
+                        if (!acc[cat]) acc[cat] = []
+                        acc[cat].push(doc)
+                        return acc
+                      },
+                      {}
+                    )
+                    const categoryOrder = [
+                      "licence-front",
+                      "licence-back",
+                      "selfie",
+                      "ownership",
+                      "ppsr_certificate",
+                      "inspection",
+                      "other",
+                    ]
+                    const sortedKeys = Object.keys(grouped).sort((a, b) => {
+                      const ai = categoryOrder.indexOf(a)
+                      const bi = categoryOrder.indexOf(b)
+                      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+                    })
+
+                    return sortedKeys.map((cat) => (
+                      <div key={cat}>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          {CATEGORY_LABELS[cat] || cat}
+                        </p>
+                        <div className="space-y-2">
+                          {grouped[cat].map((doc) => (
+                            <div
+                              key={doc.id}
+                              className="flex items-center gap-3 rounded-lg border bg-muted/20 p-2"
+                            >
+                              {/* Thumbnail */}
+                              {doc.mimeType.startsWith("image/") ? (
+                                <img
+                                  src={`/api/documents/${doc.id}`}
+                                  alt={doc.originalName}
+                                  className="h-10 w-10 rounded object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-10 w-10 items-center justify-center rounded bg-red-50">
+                                  <FileText className="h-5 w-5 text-red-500" />
+                                </div>
+                              )}
+
+                              {/* File info */}
+                              <div className="flex-1 min-w-0">
+                                <p className="truncate text-sm">
+                                  {doc.originalName}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground">
+                                  {format(new Date(doc.uploadedAt), "MMM d, yyyy")}
+                                </p>
+                              </div>
+
+                              {/* Actions */}
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() =>
+                                    window.open(`/api/documents/${doc.id}`, "_blank")
+                                  }
+                                  title="Preview"
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </Button>
+                                <a
+                                  href={`/api/documents/${doc.id}?download=true`}
+                                  download
+                                  title="Download"
+                                >
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                  >
+                                    <Download className="h-3.5 w-3.5" />
+                                  </Button>
+                                </a>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  })()}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Recent audit logs inline */}
           <Card>
             <CardHeader>
@@ -1192,6 +1318,29 @@ export default function VehicleDetailPage() {
             </CardHeader>
             <CardContent>
               <RiskGauge score={vehicle.riskScore} flags={riskFlags} />
+            </CardContent>
+          </Card>
+
+          {/* Inspection badge */}
+          <Card>
+            <CardContent className="flex items-center justify-between pt-4">
+              {vehicle.documents.some((d) => d.category === "inspection") ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Inspected
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-500">
+                  <ClipboardCheck className="h-3.5 w-3.5" />
+                  Inspection Pending
+                </span>
+              )}
+              <Link
+                href={`/admin/vehicles/${vehicleId}/audit`}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                View Audit
+              </Link>
             </CardContent>
           </Card>
 

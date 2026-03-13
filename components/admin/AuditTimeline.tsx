@@ -21,6 +21,7 @@ const ACTION_COLORS: Record<string, string> = {
   IDENTITY_VERIFIED: "bg-emerald-500",
   NOTE_ADDED: "bg-gray-500",
   SETTINGS_UPDATED: "bg-orange-500",
+  INSPECTION_NOTE_ADDED: "bg-teal-500",
 }
 
 function formatAction(action: string): string {
