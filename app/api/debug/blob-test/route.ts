@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { put } from '@vercel/blob'
 
+// Debug route: GET /api/debug/blob-test — tests Vercel Blob connectivity
 export async function GET() {
   const token = process.env.BLOB_READ_WRITE_TOKEN
   const hasBlobToken = !!token
