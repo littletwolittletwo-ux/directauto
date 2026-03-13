@@ -22,6 +22,7 @@ export async function GET() {
       access: 'public',
       contentType: 'text/plain',
       token,
+      addRandomSuffix: false,
     })
 
     return NextResponse.json({
@@ -34,13 +35,16 @@ export async function GET() {
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+    const hint = message.includes('public')
+      ? ' — Your blob store may be configured as private. Delete it on Vercel and recreate as a public store.'
+      : ''
     return NextResponse.json({
       hasBlobToken: true,
       tokenLength: token!.length,
       tokenPrefix: token!.substring(0, 12) + '...',
       uploadSuccess: false,
       blobUrl: '',
-      error: message,
+      error: message + hint,
     })
   }
 }

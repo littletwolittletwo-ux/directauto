@@ -70,12 +70,12 @@ export async function saveToBlobStorage(
   }
 
   console.log('[BLOB_STORAGE] Uploading to:', blobPath)
-  console.log('[BLOB_STORAGE] Token present:', !!token, '| Token length:', token.length)
 
   const blob = await put(blobPath, buffer, {
     access: 'public',
     contentType: mimeType,
     token,
+    addRandomSuffix: false,
   })
 
   console.log('[BLOB_STORAGE] Upload success, blob URL:', blob.url)
