@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { saveFile, saveToBlobStorage, useBlobStorage, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from '@/lib/storage'
 
+export const maxDuration = 60
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()

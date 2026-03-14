@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
-import { saveFile } from '@/lib/storage'
+import { saveFile, saveToBlobStorage, useBlobStorage } from '@/lib/storage'
 import { updateVehicleRisk } from '@/lib/risk-engine'
 import { logAudit } from '@/lib/audit'
 import { sendSellerConfirmation, sendAdminNewSubmission } from '@/lib/mailer'
+
+// Allow large file uploads (photos + documents)
+export const maxDuration = 60
+export const dynamic = 'force-dynamic'
 
 const VIN_REGEX = /^[A-HJ-NPR-Z0-9]{17}$/i
 
@@ -166,19 +170,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle file uploads
+    const useBlob = useBlobStorage()
     const uploadFile = async (
       file: File,
       category: string,
       vehId: string
     ): Promise<string> => {
       const buffer = Buffer.from(await file.arrayBuffer())
-      const { storagePath } = saveFile(
-        buffer,
-        vehId,
-        category,
-        file.name,
-        file.type
-      )
+      let storagePath: string
+
+      if (useBlob) {
+        const result = await saveToBlobStorage(buffer, vehId, category, file.name, file.type)
+        storagePath = result.storagePath
+      } else {
+        const result = saveFile(buffer, vehId, category, file.name, file.type)
+        storagePath = result.storagePath
+      }
+
+      console.log('[SUBMIT] Uploaded file:', category, storagePath)
+
       const doc = await prisma.document.create({
         data: {
           vehicleId: vehId,
