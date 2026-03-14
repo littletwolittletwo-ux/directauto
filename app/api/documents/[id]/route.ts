@@ -49,7 +49,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // If storagePath is a blob URL (Vercel Blob), redirect to it directly
+    // If storagePath is a blob URL (Vercel Blob), redirect to it directly (public access)
     if (document.storagePath.startsWith('https://')) {
       console.log('[DOCUMENT_GET] Redirecting to blob URL:', document.storagePath)
       return NextResponse.redirect(document.storagePath, 302)
