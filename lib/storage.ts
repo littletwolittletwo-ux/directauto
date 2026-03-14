@@ -114,4 +114,4 @@ export const ALLOWED_MIME_TYPES = [
   'application/pdf',
 ]
 
-export const MAX_FILE_SIZE = (parseInt(process.env.MAX_UPLOAD_SIZE_MB || '10') || 10) * 1024 * 1024
+export const MAX_FILE_SIZE = (parseInt(process.env.MAX_UPLOAD_SIZE_MB || '40') || 40) * 1024 * 1024

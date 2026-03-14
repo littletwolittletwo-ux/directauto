@@ -1065,10 +1065,10 @@ export default function VehicleDetailPage() {
                   </div>
                 </details>
 
-                {/* PPSR Certificate upload */}
+                {/* PPSR Certificate & Car Inspection upload */}
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">
-                    PPSR Certificate
+                    PPSR Certificate & Car Inspection
                   </Label>
                   {ppsrCertDoc ? (
                     <DocumentPreview
@@ -1081,6 +1081,7 @@ export default function VehicleDetailPage() {
                       vehicleId={vehicleId}
                       category="ppsr_certificate"
                       onUpload={() => fetchVehicle()}
+                      multiple
                     />
                   )}
                 </div>
@@ -1158,7 +1159,7 @@ export default function VehicleDetailPage() {
                       "licence-back": "Licence Back",
                       "selfie": "Selfie",
                       "ownership": "Ownership Documents",
-                      "ppsr_certificate": "PPSR Certificate",
+                      "ppsr_certificate": "PPSR Certificate & Car Inspection",
                       "inspection": "Inspection Documents",
                       "other": "Other",
                     }
