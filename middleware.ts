@@ -34,6 +34,7 @@ export default withAuth(
           pathname.startsWith('/api/debug/') ||
           pathname.startsWith('/sign') ||
           pathname.startsWith('/api/sign/') ||
+          pathname.startsWith('/api/webhooks/') ||
           pathname === '/'
         ) {
           return true

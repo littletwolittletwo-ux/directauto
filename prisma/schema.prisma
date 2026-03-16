@@ -24,6 +24,7 @@ model User {
 enum Role {
   ADMIN
   STAFF
+  ACCOUNTS
 }
 
 model Vehicle {
@@ -50,6 +51,20 @@ model Vehicle {
   sellerSignature    String?
   signedAt           DateTime?
   submittedAt        DateTime      @default(now())
+  autograbVehicleId    String?
+  autograbTradeValue   Float?
+  autograbRetailValue  Float?
+  inspectionCondition  String?
+  inspectionRepairCost Float?
+  inspectionNotes      String?
+  inspectedAt          DateTime?
+  docusignEnvelopeId   String?
+  docusignStatus       String        @default("NOT_SENT")
+  docusignSignedAt     DateTime?
+  purchasePrice        Float?
+  accountsApprovedAt   DateTime?
+  accountsApprovedById String?
+  easycarsSyncedAt     DateTime?
   createdById        String?
   createdBy          User?         @relation("CreatedBy", fields: [createdById], references: [id])
   identity           SellerIdentity?

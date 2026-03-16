@@ -250,6 +250,82 @@ export async function sendSaleAgreementEmail({
   })
 }
 
+export async function sendApprovalConfirmation({
+  to,
+  vehicleMake,
+  vehicleModel,
+  vehicleYear,
+  vin,
+  purchasePrice,
+  approvedBy,
+  dealershipName,
+  csvContent,
+}: {
+  to: string
+  vehicleMake: string
+  vehicleModel: string
+  vehicleYear: number
+  vin: string
+  purchasePrice: number
+  approvedBy: string
+  dealershipName: string
+  csvContent?: string | null
+}) {
+  const transporter = getTransporter()
+
+  if (!transporter) {
+    console.log('[MAILER] Approval confirmation (SMTP not configured):', { to, vin })
+    return
+  }
+
+  const formattedPrice = purchasePrice.toLocaleString('en-AU', { minimumFractionDigits: 2 })
+
+  const attachments = csvContent
+    ? [
+        {
+          filename: `easycars-import-${vin}.csv`,
+          content: csvContent,
+          contentType: 'text/csv',
+        },
+      ]
+    : []
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to,
+    subject: `Vehicle Approved & Paid — ${vehicleYear} ${vehicleMake} ${vehicleModel} | ${dealershipName}`,
+    html: `
+      <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+        ${emailHeader(dealershipName)}
+        <div style="padding: 32px; background: white;">
+          <h2 style="color: #16a34a;">Vehicle Approved & Payment Authorized</h2>
+          <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 0; color: #64748b;">Vehicle</td>
+              <td style="padding: 8px 0; font-weight: 600;">${vehicleYear} ${vehicleMake} ${vehicleModel}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 0; color: #64748b;">VIN</td>
+              <td style="padding: 8px 0;">${vin}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 0; color: #64748b;">Purchase Price</td>
+              <td style="padding: 8px 0; font-weight: 600;">AUD $${formattedPrice}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 0; color: #64748b;">Approved By</td>
+              <td style="padding: 8px 0;">${approvedBy}</td>
+            </tr>
+          </table>
+          ${csvContent ? '<p style="color: #475569;">EasyCars CSV import file is attached.</p>' : '<p style="color: #475569;">Vehicle has been synced to EasyCars via API.</p>'}
+        </div>
+        ${emailFooter()}
+      </div>
+    `,
+    attachments,
+  })
+}
+
 export async function sendSellerMoreInfoRequest({
   to,
   sellerName,

@@ -147,6 +147,10 @@ export async function POST(request: NextRequest) {
       sellerEmail,
       sellerPrice,
       location,
+      autograbVehicleId,
+      autograbTradeValue,
+      autograbRetailValue,
+      purchasePrice,
     } = body
 
     // Validate required fields
@@ -181,6 +185,10 @@ export async function POST(request: NextRequest) {
         sellerEmail,
         sellerPrice: sellerPrice ? parseFloat(sellerPrice) : null,
         location: location || null,
+        autograbVehicleId: autograbVehicleId || null,
+        autograbTradeValue: autograbTradeValue ? parseFloat(autograbTradeValue) : null,
+        autograbRetailValue: autograbRetailValue ? parseFloat(autograbRetailValue) : null,
+        purchasePrice: purchasePrice ? parseFloat(purchasePrice) : null,
         submissionSource: 'STAFF_ENTRY',
         createdById: (session.user as any).id,
         status: 'PENDING_VERIFICATION',

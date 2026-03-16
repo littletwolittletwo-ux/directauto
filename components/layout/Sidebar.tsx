@@ -12,6 +12,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  SearchCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -37,6 +38,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
+  { label: "Acquire Vehicle", href: "/admin/acquire", icon: SearchCheck },
   { label: "Vehicles", href: "/admin/vehicles", icon: Car },
   { label: "Documents", href: "/admin/documents", icon: FileText },
   { label: "Audit Log", href: "/admin/audit", icon: Clock },

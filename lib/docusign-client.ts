@@ -1,0 +1,284 @@
+/**
+ * DocuSign eSignature REST API client
+ * Auth: JWT Grant (server-to-server)
+ */
+
+interface DocuSignConfig {
+  integrationKey: string
+  secretKey: string
+  accountId: string
+  userId: string
+  privateKey: string
+  baseUrl: string
+}
+
+function getConfig(): DocuSignConfig {
+  const integrationKey = process.env.DOCUSIGN_INTEGRATION_KEY
+  const secretKey = process.env.DOCUSIGN_SECRET_KEY
+  const accountId = process.env.DOCUSIGN_ACCOUNT_ID
+  const userId = process.env.DOCUSIGN_USER_ID
+  const privateKey = process.env.DOCUSIGN_PRIVATE_KEY
+  const baseUrl = process.env.DOCUSIGN_BASE_URL || 'https://demo.docusign.net/restapi'
+
+  if (!integrationKey || !secretKey || !accountId || !userId || !privateKey) {
+    throw new Error(
+      'DocuSign credentials not configured. Set DOCUSIGN_INTEGRATION_KEY, DOCUSIGN_SECRET_KEY, DOCUSIGN_ACCOUNT_ID, DOCUSIGN_USER_ID, and DOCUSIGN_PRIVATE_KEY.'
+    )
+  }
+
+  return { integrationKey, secretKey, accountId, userId, privateKey, baseUrl }
+}
+
+let cachedToken: { token: string; expiresAt: number } | null = null
+
+async function getAccessToken(): Promise<string> {
+  if (cachedToken && Date.now() < cachedToken.expiresAt) {
+    return cachedToken.token
+  }
+
+  const config = getConfig()
+
+  // JWT Grant flow
+  const now = Math.floor(Date.now() / 1000)
+  const header = Buffer.from(JSON.stringify({ typ: 'JWT', alg: 'RS256' })).toString('base64url')
+  const payload = Buffer.from(JSON.stringify({
+    iss: config.integrationKey,
+    sub: config.userId,
+    aud: config.baseUrl.includes('demo') ? 'account-d.docusign.com' : 'account.docusign.com',
+    iat: now,
+    exp: now + 3600,
+    scope: 'signature impersonation',
+  })).toString('base64url')
+
+  // Sign JWT with private key
+  const crypto = await import('crypto')
+  const sign = crypto.createSign('RSA-SHA256')
+  sign.update(`${header}.${payload}`)
+  const privateKeyFormatted = config.privateKey.replace(/\\n/g, '\n')
+  const signature = sign.sign(privateKeyFormatted, 'base64url')
+  const jwt = `${header}.${payload}.${signature}`
+
+  const authHost = config.baseUrl.includes('demo')
+    ? 'https://account-d.docusign.com'
+    : 'https://account.docusign.com'
+
+  const tokenResponse = await fetch(`${authHost}/oauth/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  })
+
+  if (!tokenResponse.ok) {
+    const text = await tokenResponse.text()
+    throw new Error(`DocuSign token request failed: ${tokenResponse.status} - ${text}`)
+  }
+
+  const tokenData = await tokenResponse.json()
+  cachedToken = {
+    token: tokenData.access_token,
+    expiresAt: Date.now() + (tokenData.expires_in - 60) * 1000,
+  }
+
+  console.log('[DOCUSIGN] Access token obtained')
+  return cachedToken.token
+}
+
+export interface BillOfSaleData {
+  sellerName: string
+  sellerAddress: string
+  sellerLicenceNumber: string
+  buyerName: string
+  buyerAddress: string
+  vehicleMake: string
+  vehicleModel: string
+  vehicleYear: number
+  vehicleVin: string
+  vehicleRego: string
+  vehicleOdometer: number
+  purchasePrice: number
+  sellerEmail: string
+  date: string
+}
+
+export async function createAndSendEnvelope(data: BillOfSaleData): Promise<string> {
+  const config = getConfig()
+  const token = await getAccessToken()
+
+  const billOfSaleHtml = generateBillOfSaleHtml(data)
+  const htmlBase64 = Buffer.from(billOfSaleHtml).toString('base64')
+
+  const envelopeDefinition = {
+    emailSubject: `Bill of Sale — ${data.vehicleYear} ${data.vehicleMake} ${data.vehicleModel}`,
+    emailBlurb: `Please review and sign the Bill of Sale for the ${data.vehicleYear} ${data.vehicleMake} ${data.vehicleModel}.`,
+    documents: [
+      {
+        documentBase64: htmlBase64,
+        name: 'Bill of Sale',
+        fileExtension: 'html',
+        documentId: '1',
+      },
+    ],
+    recipients: {
+      signers: [
+        {
+          email: data.sellerEmail,
+          name: data.sellerName,
+          recipientId: '1',
+          routingOrder: '1',
+          tabs: {
+            signHereTabs: [
+              {
+                documentId: '1',
+                anchorString: '/sig1/',
+                anchorUnits: 'pixels',
+                anchorXOffset: '0',
+                anchorYOffset: '-10',
+              },
+            ],
+            dateSignedTabs: [
+              {
+                documentId: '1',
+                anchorString: '/date1/',
+                anchorUnits: 'pixels',
+                anchorXOffset: '0',
+                anchorYOffset: '-10',
+              },
+            ],
+          },
+        },
+      ],
+    },
+    status: 'sent',
+    eventNotification: {
+      url: `${process.env.NEXTAUTH_URL}/api/webhooks/docusign`,
+      requireAcknowledgment: 'true',
+      loggingEnabled: 'true',
+      envelopeEvents: [
+        { envelopeEventStatusCode: 'completed' },
+        { envelopeEventStatusCode: 'declined' },
+        { envelopeEventStatusCode: 'voided' },
+      ],
+    },
+  }
+
+  const response = await fetch(
+    `${config.baseUrl}/v2.1/accounts/${config.accountId}/envelopes`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(envelopeDefinition),
+    }
+  )
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`DocuSign create envelope failed: ${response.status} - ${text}`)
+  }
+
+  const result = await response.json()
+  console.log('[DOCUSIGN] Envelope created:', result.envelopeId)
+  return result.envelopeId
+}
+
+export async function downloadSignedDocument(envelopeId: string): Promise<Buffer> {
+  const config = getConfig()
+  const token = await getAccessToken()
+
+  const response = await fetch(
+    `${config.baseUrl}/v2.1/accounts/${config.accountId}/envelopes/${envelopeId}/documents/combined`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/pdf',
+      },
+    }
+  )
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`DocuSign download failed: ${response.status} - ${text}`)
+  }
+
+  const arrayBuffer = await response.arrayBuffer()
+  return Buffer.from(arrayBuffer)
+}
+
+function generateBillOfSaleHtml(data: BillOfSaleData): string {
+  const formattedPrice = data.purchasePrice.toLocaleString('en-AU', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+
+  return `<!DOCTYPE html>
+<html>
+<head><style>
+  body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; }
+  h1 { text-align: center; color: #1e40af; margin-bottom: 30px; }
+  table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+  td { padding: 8px 12px; border: 1px solid #e2e8f0; }
+  td:first-child { background: #f8fafc; font-weight: 600; width: 200px; }
+  .section { margin-top: 30px; }
+  .section h2 { color: #1e40af; font-size: 16px; border-bottom: 2px solid #1e40af; padding-bottom: 5px; }
+  .signature-area { margin-top: 50px; }
+  .sig-line { border-bottom: 1px solid #333; width: 300px; margin-top: 40px; }
+</style></head>
+<body>
+  <h1>BILL OF SALE — MOTOR VEHICLE</h1>
+
+  <div class="section">
+    <h2>Seller Details</h2>
+    <table>
+      <tr><td>Name</td><td>${data.sellerName}</td></tr>
+      <tr><td>Address</td><td>${data.sellerAddress}</td></tr>
+      <tr><td>Licence Number</td><td>${data.sellerLicenceNumber}</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Buyer Details</h2>
+    <table>
+      <tr><td>Name</td><td>${data.buyerName}</td></tr>
+      <tr><td>Address</td><td>${data.buyerAddress}</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Vehicle Details</h2>
+    <table>
+      <tr><td>Make</td><td>${data.vehicleMake}</td></tr>
+      <tr><td>Model</td><td>${data.vehicleModel}</td></tr>
+      <tr><td>Year</td><td>${data.vehicleYear}</td></tr>
+      <tr><td>VIN</td><td>${data.vehicleVin}</td></tr>
+      <tr><td>Registration</td><td>${data.vehicleRego}</td></tr>
+      <tr><td>Odometer</td><td>${data.vehicleOdometer.toLocaleString()} km</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Sale Details</h2>
+    <table>
+      <tr><td>Purchase Price</td><td>AUD $${formattedPrice}</td></tr>
+      <tr><td>Date</td><td>${data.date}</td></tr>
+    </table>
+  </div>
+
+  <p style="margin-top: 30px;">
+    The Seller hereby sells and transfers the above-described motor vehicle to the Buyer
+    for the consideration stated above. The Seller warrants that they are the lawful owner
+    of said vehicle and have the right to sell it. The vehicle is sold in its current condition.
+  </p>
+
+  <div class="signature-area">
+    <p><strong>Seller Signature:</strong></p>
+    <p>/sig1/</p>
+    <p><strong>Date:</strong> /date1/</p>
+  </div>
+</body>
+</html>`
+}

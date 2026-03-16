@@ -83,6 +83,20 @@ interface Vehicle {
   sellerSignature: string | null
   signedAt: string | null
   submittedAt: string
+  autograbVehicleId: string | null
+  autograbTradeValue: number | null
+  autograbRetailValue: number | null
+  inspectionCondition: string | null
+  inspectionRepairCost: number | null
+  inspectionNotes: string | null
+  inspectedAt: string | null
+  docusignEnvelopeId: string | null
+  docusignStatus: string
+  docusignSignedAt: string | null
+  purchasePrice: number | null
+  accountsApprovedAt: string | null
+  accountsApprovedById: string | null
+  easycarsSyncedAt: string | null
   identity: {
     id: string
     fullLegalName: string
@@ -174,6 +188,27 @@ export default function VehicleDetailPage() {
   // Link generation
   const [generatingLink, setGeneratingLink] = useState(false)
 
+  // Inspection state
+  const [inspCondition, setInspCondition] = useState("")
+  const [inspRepairCost, setInspRepairCost] = useState("")
+  const [inspNotes, setInspNotes] = useState("")
+  const [savingInspection, setSavingInspection] = useState(false)
+
+  // DocuSign state
+  const [sendingDocusign, setSendingDocusign] = useState(false)
+
+  // Purchase price state
+  const [editPurchasePrice, setEditPurchasePrice] = useState("")
+
+  // Accounts approval state
+  const [approving, setApproving] = useState(false)
+  const [approvalChecks, setApprovalChecks] = useState({
+    ppsr: false,
+    inspection: false,
+    billOfSale: false,
+    purchasePrice: false,
+  })
+
 
   const fetchVehicle = useCallback(async () => {
     try {
@@ -183,6 +218,20 @@ export default function VehicleDetailPage() {
       setVehicle(data)
       setEditPrice(data.sellerPrice?.toString() || "")
       setEditLocation(data.location || "")
+
+      // Initialize inspection form
+      setInspCondition(data.inspectionCondition || "")
+      setInspRepairCost(data.inspectionRepairCost?.toString() || "")
+      setInspNotes(data.inspectionNotes || "")
+      setEditPurchasePrice(data.purchasePrice?.toString() || "")
+
+      // Auto-set approval checks
+      setApprovalChecks({
+        ppsr: data.ppsrCheck?.status === "COMPLETED",
+        inspection: !!(data.inspectedAt || data.documents?.some((d: any) => d.category === "INSPECTION_REPORT")),
+        billOfSale: data.docusignStatus === "SIGNED",
+        purchasePrice: !!data.purchasePrice,
+      })
 
       // Initialize PPSR form from existing data
       if (data.ppsrCheck) {
@@ -399,6 +448,107 @@ export default function VehicleDetailPage() {
       toast.error("Failed to update ownership status")
     }
   }
+
+  async function handleSaveInspection() {
+    setSavingInspection(true)
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}/inspection`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          condition: inspCondition || null,
+          repairCost: inspRepairCost || null,
+          notes: inspNotes || null,
+        }),
+      })
+      if (!res.ok) throw new Error("Failed to save inspection")
+      toast.success("Inspection details saved")
+      fetchVehicle()
+    } catch {
+      toast.error("Failed to save inspection")
+    } finally {
+      setSavingInspection(false)
+    }
+  }
+
+  async function handleSendDocuSign() {
+    if (!editPurchasePrice) {
+      toast.error("Set the purchase price before sending Bill of Sale")
+      return
+    }
+
+    // Save purchase price first
+    try {
+      await fetch(`/api/vehicles/${vehicleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ purchasePrice: editPurchasePrice }),
+      })
+    } catch {
+      toast.error("Failed to save purchase price")
+      return
+    }
+
+    setSendingDocusign(true)
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}/docusign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to send DocuSign")
+      toast.success("Bill of Sale sent via DocuSign")
+      fetchVehicle()
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send DocuSign")
+    } finally {
+      setSendingDocusign(false)
+    }
+  }
+
+  async function handleSavePurchasePrice() {
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ purchasePrice: editPurchasePrice || null }),
+      })
+      if (!res.ok) throw new Error("Failed to save")
+      toast.success("Purchase price saved")
+      fetchVehicle()
+    } catch {
+      toast.error("Failed to save purchase price")
+    }
+  }
+
+  async function handleApprovePay() {
+    setApproving(true)
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}/approve-pay`, {
+        method: "POST",
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        const details = data.details?.join(", ") || data.error
+        throw new Error(details || "Approval failed")
+      }
+
+      toast.success("Vehicle approved and payment authorized")
+
+      if (data.easycars?.method === "csv" && data.easycars?.csv) {
+        toast.info("EasyCars CSV available for download")
+      }
+
+      fetchVehicle()
+    } catch (err: any) {
+      toast.error(err.message || "Approval failed")
+    } finally {
+      setApproving(false)
+    }
+  }
+
+  const isAccountsUser = session?.user?.role === "ACCOUNTS"
+  const canApprovePay = isAdmin || isAccountsUser
 
   if (loading) {
     return (
@@ -1089,7 +1239,103 @@ export default function VehicleDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Card 6: Declaration */}
+          {/* Card 6: Inspection Report */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardCheck className="h-4 w-4" />
+                Inspection Report
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">
+                    Condition
+                  </Label>
+                  <Select value={inspCondition} onValueChange={setInspCondition}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select condition" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Excellent">Excellent</SelectItem>
+                      <SelectItem value="Good">Good</SelectItem>
+                      <SelectItem value="Fair">Fair</SelectItem>
+                      <SelectItem value="Poor">Poor</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">
+                    Estimated Repair Cost (AUD)
+                  </Label>
+                  <Input
+                    type="number"
+                    value={inspRepairCost}
+                    onChange={(e) => setInspRepairCost(e.target.value)}
+                    placeholder="$0"
+                    min={0}
+                    step="0.01"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  Mechanical Notes
+                </Label>
+                <Textarea
+                  value={inspNotes}
+                  onChange={(e) => setInspNotes(e.target.value)}
+                  placeholder="Observations about vehicle condition..."
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  Upload Inspection Report (PDF or images)
+                </Label>
+                <DocumentUploader
+                  vehicleId={vehicleId}
+                  category="INSPECTION_REPORT"
+                  onUpload={() => fetchVehicle()}
+                  multiple
+                  existingDocs={vehicle.documents
+                    .filter((d) => d.category === "INSPECTION_REPORT")
+                    .map((d) => ({
+                      id: d.id,
+                      originalName: d.originalName,
+                      mimeType: d.mimeType,
+                    }))}
+                />
+              </div>
+
+              {vehicle.inspectedAt && (
+                <p className="text-xs text-muted-foreground">
+                  Last inspected:{" "}
+                  {format(new Date(vehicle.inspectedAt), "MMM d, yyyy 'at' h:mm a")}
+                </p>
+              )}
+
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  onClick={handleSaveInspection}
+                  disabled={savingInspection}
+                >
+                  {savingInspection ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Save className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  Save Inspection
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Card 7: Declaration */}
           <Card>
             <CardHeader>
               <CardTitle>Declaration</CardTitle>
@@ -1344,6 +1590,212 @@ export default function VehicleDetailPage() {
               </Link>
             </CardContent>
           </Card>
+
+          {/* Autograb Valuation */}
+          {(vehicle.autograbTradeValue || vehicle.autograbRetailValue) && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Autograb Valuation</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Trade Value</span>
+                  <span className="font-medium">
+                    ${vehicle.autograbTradeValue?.toLocaleString() || "N/A"}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Retail Value</span>
+                  <span className="font-medium">
+                    ${vehicle.autograbRetailValue?.toLocaleString() || "N/A"}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Purchase Price */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Purchase Price</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  value={editPurchasePrice}
+                  onChange={(e) => setEditPurchasePrice(e.target.value)}
+                  placeholder="$0"
+                  min={0}
+                  step="0.01"
+                />
+                <Button size="sm" onClick={handleSavePurchasePrice}>
+                  <Save className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              {vehicle.purchasePrice && (
+                <p className="text-xs text-muted-foreground">
+                  Current: ${vehicle.purchasePrice.toLocaleString()}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* DocuSign Bill of Sale */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Bill of Sale (DocuSign)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Status:</span>
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium border",
+                    vehicle.docusignStatus === "SIGNED"
+                      ? "bg-green-50 text-green-700 border-green-200"
+                      : vehicle.docusignStatus === "SENT"
+                      ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                      : "bg-gray-50 text-gray-500 border-gray-200"
+                  )}
+                >
+                  {vehicle.docusignStatus}
+                </span>
+              </div>
+
+              {vehicle.docusignStatus === "NOT_SENT" && (
+                <Button
+                  className="w-full"
+                  size="sm"
+                  onClick={handleSendDocuSign}
+                  disabled={sendingDocusign || !editPurchasePrice}
+                >
+                  {sendingDocusign ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Send className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {sendingDocusign ? "Sending..." : "Send Bill of Sale"}
+                </Button>
+              )}
+
+              {vehicle.docusignSignedAt && (
+                <p className="text-xs text-green-600">
+                  Signed: {format(new Date(vehicle.docusignSignedAt), "MMM d, yyyy 'at' h:mm a")}
+                </p>
+              )}
+
+              {vehicle.docusignStatus === "SIGNED" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    const signedDoc = vehicle.documents.find(
+                      (d) => d.category === "bill-of-sale-signed"
+                    )
+                    if (signedDoc) {
+                      window.open(`/api/documents/${signedDoc.id}`, "_blank")
+                    }
+                  }}
+                >
+                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                  Download Signed PDF
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Accounts Approval */}
+          {canApprovePay && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Accounts Approval</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {vehicle.accountsApprovedAt ? (
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+                    <p className="text-sm font-medium text-green-700">
+                      Approved & Paid
+                    </p>
+                    <p className="text-xs text-green-600">
+                      {format(new Date(vehicle.accountsApprovedAt), "MMM d, yyyy 'at' h:mm a")}
+                    </p>
+                    {vehicle.easycarsSyncedAt && (
+                      <p className="mt-1 text-xs text-green-600">
+                        Synced to EasyCars: {format(new Date(vehicle.easycarsSyncedAt), "MMM d, yyyy")}
+                      </p>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 w-full"
+                      onClick={() =>
+                        window.open(`/api/vehicles/${vehicleId}/easycars`, "_blank")
+                      }
+                    >
+                      <Download className="mr-1.5 h-3.5 w-3.5" />
+                      Download EasyCars CSV
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      {[
+                        { key: "ppsr" as const, label: "PPSR checked" },
+                        { key: "inspection" as const, label: "Inspection report uploaded" },
+                        { key: "billOfSale" as const, label: "Bill of Sale signed" },
+                        { key: "purchasePrice" as const, label: "Purchase price confirmed" },
+                      ].map(({ key, label }) => (
+                        <label
+                          key={key}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={approvalChecks[key]}
+                            onChange={(e) =>
+                              setApprovalChecks((prev) => ({
+                                ...prev,
+                                [key]: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          <span className="text-sm">{label}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    <Button
+                      className="w-full bg-green-600 hover:bg-green-700"
+                      onClick={handleApprovePay}
+                      disabled={
+                        approving ||
+                        !Object.values(approvalChecks).every(Boolean)
+                      }
+                    >
+                      {approving ? (
+                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                      )}
+                      {approving ? "Processing..." : "Approve & Pay"}
+                    </Button>
+
+                    {!Object.values(approvalChecks).every(Boolean) && (
+                      <p className="text-[11px] text-muted-foreground">
+                        All items must be checked before approving
+                      </p>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Admin notes */}
           <Card>

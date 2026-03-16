@@ -6,7 +6,7 @@ declare module 'next-auth' {
       id: string
       email: string
       name: string
-      role: 'ADMIN' | 'STAFF'
+      role: 'ADMIN' | 'STAFF' | 'ACCOUNTS'
     }
   }
 
@@ -14,13 +14,13 @@ declare module 'next-auth' {
     id: string
     email: string
     name: string
-    role: 'ADMIN' | 'STAFF'
+    role: 'ADMIN' | 'STAFF' | 'ACCOUNTS'
   }
 }
 
 declare module 'next-auth/jwt' {
   interface JWT {
     id: string
-    role: 'ADMIN' | 'STAFF'
+    role: 'ADMIN' | 'STAFF' | 'ACCOUNTS'
   }
 }
