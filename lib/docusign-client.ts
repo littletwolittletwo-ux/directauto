@@ -1,7 +1,7 @@
 /**
  * DocuSign eSignature REST API client
  * Auth: JWT Grant (server-to-server)
- * Configured for Australian production (au.docusign.net)
+ * Demo environment: account-d.docusign.com / demo.docusign.net
  */
 
 interface DocuSignConfig {
@@ -14,12 +14,13 @@ interface DocuSignConfig {
 }
 
 function getConfig(): DocuSignConfig {
-  const integrationKey = process.env.DOCUSIGN_INTEGRATION_KEY
-  const accountId = process.env.DOCUSIGN_ACCOUNT_ID
-  const userId = process.env.DOCUSIGN_USER_ID
-  const privateKey = process.env.DOCUSIGN_PRIVATE_KEY
-  const basePath = process.env.DOCUSIGN_BASE_PATH || 'https://demo.docusign.net/restapi'
-  const authServer = process.env.DOCUSIGN_AUTH_SERVER || 'account-d.docusign.com'
+  // Trim all values to prevent hidden whitespace/newline issues from env vars
+  const integrationKey = (process.env.DOCUSIGN_INTEGRATION_KEY || '').trim()
+  const accountId = (process.env.DOCUSIGN_ACCOUNT_ID || '').trim()
+  const userId = (process.env.DOCUSIGN_USER_ID || '').trim()
+  const privateKey = (process.env.DOCUSIGN_PRIVATE_KEY || '').trim()
+  const basePath = (process.env.DOCUSIGN_BASE_PATH || 'https://demo.docusign.net/restapi').trim()
+  const authServer = (process.env.DOCUSIGN_AUTH_SERVER || 'account-d.docusign.com').trim()
 
   if (!integrationKey || !accountId || !userId || !privateKey) {
     throw new Error(
@@ -82,14 +83,11 @@ async function getAccessToken(): Promise<string> {
   }
 
   console.log('[DOCUSIGN] === JWT Debug ===')
-  console.log('[DOCUSIGN] DOCUSIGN_INTEGRATION_KEY env:', process.env.DOCUSIGN_INTEGRATION_KEY)
-  console.log('[DOCUSIGN] DOCUSIGN_USER_ID env:', process.env.DOCUSIGN_USER_ID)
-  console.log('[DOCUSIGN] DOCUSIGN_AUTH_SERVER env:', process.env.DOCUSIGN_AUTH_SERVER)
-  console.log('[DOCUSIGN] JWT iss (integrationKey):', jwtPayload.iss)
-  console.log('[DOCUSIGN] JWT sub (userId):', jwtPayload.sub)
-  console.log('[DOCUSIGN] JWT aud (authServer):', jwtPayload.aud)
-  console.log('[DOCUSIGN] JWT scope:', jwtPayload.scope)
-  console.log('[DOCUSIGN] Auth URL:', `https://${config.authServer}/oauth/token`)
+  console.log('[DOCUSIGN] iss (integrationKey):', `"${jwtPayload.iss}"`, `(len=${jwtPayload.iss.length})`)
+  console.log('[DOCUSIGN] sub (userId):', `"${jwtPayload.sub}"`, `(len=${jwtPayload.sub.length})`)
+  console.log('[DOCUSIGN] aud:', jwtPayload.aud)
+  console.log('[DOCUSIGN] Token URL:', `https://${config.authServer}/oauth/token`)
+  console.log('[DOCUSIGN] If issuer_not_found, grant consent at:', `https://${config.authServer}/oauth/auth?response_type=code&scope=signature%20impersonation&client_id=${jwtPayload.iss}&redirect_uri=${encodeURIComponent(process.env.NEXTAUTH_URL + '/api/auth/docusign/callback')}`)
 
   const header = Buffer.from(JSON.stringify({ typ: 'JWT', alg: 'RS256' })).toString('base64url')
   const payload = Buffer.from(JSON.stringify(jwtPayload)).toString('base64url')
@@ -334,8 +332,11 @@ function generateBillOfSaleHtml(data: BillOfSaleData): string {
 
   <div class="signature-area">
     <p><strong>Seller Signature:</strong></p>
-    <p>/sig1/</p>
-    <p><strong>Date:</strong> /date1/</p>
+    <p style="margin-top: 10px; font-size: 8px; color: #ffffff;">/sig1/</p>
+    <div style="border-bottom: 1px solid #333; width: 300px; height: 40px; margin-top: 5px;"></div>
+    <p style="margin-top: 20px;"><strong>Date:</strong></p>
+    <p style="margin-top: 10px; font-size: 8px; color: #ffffff;">/date1/</p>
+    <div style="border-bottom: 1px solid #333; width: 200px; margin-top: 5px;"></div>
   </div>
 </body>
 </html>`
