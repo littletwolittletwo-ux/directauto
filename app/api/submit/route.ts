@@ -154,6 +154,19 @@ export async function POST(request: NextRequest) {
       throw createErr
     }
 
+    // Validate licence expiry date before creating identity
+    let parsedLicenceExpiry: Date = new Date()
+    if (licenceExpiry) {
+      const d = new Date(licenceExpiry)
+      if (isNaN(d.getTime()) || d.getFullYear() > 2100) {
+        return NextResponse.json(
+          { error: 'Invalid licence expiry date.' },
+          { status: 400 }
+        )
+      }
+      parsedLicenceExpiry = d
+    }
+
     // Create SellerIdentity record
     try {
       await prisma.sellerIdentity.create({
@@ -163,7 +176,7 @@ export async function POST(request: NextRequest) {
           address: sellerAddress || 'Not provided',
           driversLicenceNumber: licenceNumber || 'Not provided',
           licenceState: licenceState || 'NSW',
-          licenceExpiry: licenceExpiry ? new Date(licenceExpiry) : new Date(),
+          licenceExpiry: parsedLicenceExpiry,
         },
       })
       console.log('[SUBMIT] SellerIdentity created')
