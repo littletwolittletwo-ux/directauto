@@ -113,11 +113,15 @@ export async function getValuation(vehicleId: string, kms: number): Promise<Auto
   }
 
   const data = await response.json()
-  console.log('[AUTOGRAB] Valuation result:', JSON.stringify(data).slice(0, 500))
+  console.log('[AUTOGRAB] Valuation raw response:', JSON.stringify(data))
+
+  // Unwrap nested valuation response
+  const v = (data.data && typeof data.data === 'object' ? data.data : data) as Record<string, unknown>
+  console.log('[AUTOGRAB] Valuation keys:', Object.keys(v))
 
   return {
-    trade_value: data.trade_value ?? data.trade ?? 0,
-    retail_value: data.retail_value ?? data.retail ?? 0,
+    trade_value: num(v.trade_value, v.trade, v.tradeValue, v.wholesale, v.wholesale_value, v.trade_low, v.trade_avg),
+    retail_value: num(v.retail_value, v.retail, v.retailValue, v.retail_low, v.retail_avg, v.dealer_retail),
   }
 }
 

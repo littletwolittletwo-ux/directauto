@@ -15,7 +15,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
+// Separator removed — unused
 import { toast } from "sonner"
 import {
   ArrowLeft,
@@ -138,14 +138,15 @@ export default function AcquireVehiclePage() {
       const data: LookupResult = await res.json()
       setLookupResult(data)
 
-      // Auto-fill form
+      // Auto-fill form — use query as rego fallback if lookup was by rego
+      const regoFallback = !isVin ? query.trim() : ''
       setForm((prev) => ({
         ...prev,
         make: data.vehicle.make || prev.make,
         model: data.vehicle.model || prev.model,
         year: data.vehicle.year ? String(data.vehicle.year) : prev.year,
         vin: data.vehicle.vin || prev.vin,
-        registrationNumber: data.vehicle.registration_number || prev.registrationNumber,
+        registrationNumber: data.vehicle.registration_number || regoFallback || prev.registrationNumber,
         colour: data.vehicle.colour || prev.colour,
         engine: data.vehicle.engine || prev.engine,
         transmission: data.vehicle.transmission || prev.transmission,
@@ -371,61 +372,54 @@ export default function AcquireVehiclePage() {
         </CardContent>
       </Card>
 
-      {/* PPSR Result */}
-      {(ppsrResult || ppsrLoading || ppsrError) && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              PPSR Check
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {ppsrLoading && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Running PPSR check...
-              </div>
-            )}
-            {ppsrError && (
-              <p className="text-sm text-red-600">{ppsrError}</p>
-            )}
-            {ppsrResult && (
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="flex items-center gap-2">
-                  {ppsrResult.isWrittenOff ? (
-                    <AlertTriangle className="h-4 w-4 text-red-500" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  )}
-                  <span className="text-sm">
-                    Written Off: {ppsrResult.isWrittenOff ? "YES" : "No"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {ppsrResult.isStolen ? (
-                    <AlertTriangle className="h-4 w-4 text-red-500" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  )}
-                  <span className="text-sm">
-                    Stolen: {ppsrResult.isStolen ? "YES" : "No"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {ppsrResult.hasFinance ? (
-                    <AlertTriangle className="h-4 w-4 text-red-500" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  )}
-                  <span className="text-sm">
-                    Finance: {ppsrResult.hasFinance ? "YES" : "No"}
-                  </span>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* PPSR Result Banner */}
+      {ppsrLoading && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 flex items-center gap-3">
+          <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+          <div>
+            <p className="text-sm font-medium text-blue-800">Running PPSR / Car Analysis check...</p>
+            <p className="text-xs text-blue-600">This may take up to 30 seconds</p>
+          </div>
+        </div>
+      )}
+      {ppsrError && (
+        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 text-yellow-600 shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-yellow-800">PPSR check failed</p>
+            <p className="text-xs text-yellow-600">{ppsrError}</p>
+          </div>
+        </div>
+      )}
+      {ppsrResult && !ppsrResult.isWrittenOff && !ppsrResult.isStolen && !ppsrResult.hasFinance && (
+        <div className="rounded-lg border border-green-300 bg-green-50 p-4 flex items-center gap-3">
+          <CheckCircle2 className="h-6 w-6 text-green-600 shrink-0" />
+          <div>
+            <p className="text-sm font-bold text-green-800">PPSR Clear — No issues found</p>
+            <p className="text-xs text-green-600">No finance, no write-off, no stolen records</p>
+          </div>
+        </div>
+      )}
+      {ppsrResult && ppsrResult.hasFinance && !ppsrResult.isWrittenOff && !ppsrResult.isStolen && (
+        <div className="rounded-lg border border-orange-300 bg-orange-50 p-4 flex items-center gap-3">
+          <AlertTriangle className="h-6 w-6 text-orange-600 shrink-0" />
+          <div>
+            <p className="text-sm font-bold text-orange-800">Finance Owing — Proceed with caution</p>
+            <p className="text-xs text-orange-600">This vehicle has finance registered on the PPSR. Ensure finance is discharged before purchase.</p>
+          </div>
+        </div>
+      )}
+      {ppsrResult && (ppsrResult.isWrittenOff || ppsrResult.isStolen) && (
+        <div className="rounded-lg border-2 border-red-400 bg-red-50 p-4 flex items-center gap-3">
+          <AlertTriangle className="h-7 w-7 text-red-600 shrink-0" />
+          <div>
+            <p className="text-base font-bold text-red-800">
+              WARNING — {ppsrResult.isStolen ? "Vehicle is recorded as STOLEN" : "Vehicle is recorded as WRITTEN OFF"}
+              {ppsrResult.isStolen && ppsrResult.isWrittenOff ? " and WRITTEN OFF" : ""}
+            </p>
+            <p className="text-sm text-red-600 font-medium">Do not proceed with this acquisition!</p>
+          </div>
+        </div>
       )}
 
       {/* Vehicle Details Form */}
@@ -658,13 +652,20 @@ export default function AcquireVehiclePage() {
           >
             Cancel
           </Link>
-          <Button type="submit" disabled={submitting}>
+          <Button
+            type="submit"
+            disabled={submitting || (ppsrResult?.isStolen === true) || (ppsrResult?.isWrittenOff === true)}
+          >
             {submitting ? (
               <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
             ) : (
               <Save className="mr-1.5 h-4 w-4" />
             )}
-            {submitting ? "Creating..." : "Create Vehicle Record"}
+            {ppsrResult?.isStolen || ppsrResult?.isWrittenOff
+              ? "Blocked — PPSR Issue"
+              : submitting
+              ? "Creating..."
+              : "Create Vehicle Record"}
           </Button>
         </div>
       </form>
