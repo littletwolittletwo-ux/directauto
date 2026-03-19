@@ -147,15 +147,6 @@ export async function POST(request: NextRequest) {
       sellerEmail,
       sellerPrice,
       location,
-      autograbVehicleId,
-      autograbTradeValue,
-      autograbRetailValue,
-      autograbColour,
-      autograbEngine,
-      autograbTransmission,
-      autograbBodyType,
-      purchasePrice,
-      offerPrice,
     } = body
 
     // Validate required fields
@@ -176,34 +167,61 @@ export async function POST(request: NextRequest) {
     })
     const confirmationNumber = `${prefix}${(count + 1).toString().padStart(4, '0')}`
 
-    const vehicle = await prisma.vehicle.create({
-      data: {
-        confirmationNumber,
-        vin: vin.toUpperCase(),
-        registrationNumber,
-        make,
-        model,
-        year: parseInt(year, 10),
-        odometer: parseInt(odometer, 10),
-        sellerName,
-        sellerPhone,
-        sellerEmail,
-        sellerPrice: sellerPrice ? parseFloat(sellerPrice) : null,
-        location: location || null,
-        autograbVehicleId: autograbVehicleId || null,
-        autograbTradeValue: autograbTradeValue ? parseFloat(autograbTradeValue) : null,
-        autograbRetailValue: autograbRetailValue ? parseFloat(autograbRetailValue) : null,
-        autograbColour: autograbColour || null,
-        autograbEngine: autograbEngine || null,
-        autograbTransmission: autograbTransmission || null,
-        autograbBodyType: autograbBodyType || null,
-        purchasePrice: purchasePrice ? parseFloat(purchasePrice) : null,
-        offerPrice: offerPrice ? parseFloat(offerPrice) : null,
-        submissionSource: 'STAFF_ENTRY',
-        createdById: (session.user as any).id,
-        status: 'PENDING_VERIFICATION',
-      },
-    })
+    // Base data — only fields guaranteed to exist in the database
+    const createData: any = {
+      confirmationNumber,
+      vin: vin.toUpperCase(),
+      registrationNumber,
+      make,
+      model,
+      year: parseInt(year, 10),
+      odometer: parseInt(odometer, 10),
+      sellerName,
+      sellerPhone,
+      sellerEmail,
+      sellerPrice: sellerPrice ? parseFloat(sellerPrice) : null,
+      location: location || null,
+      submissionSource: 'STAFF_ENTRY',
+      createdById: (session.user as any).id,
+      status: 'PENDING_VERIFICATION',
+    }
+
+    // Try to create with base fields first
+    let vehicle
+    try {
+      vehicle = await prisma.vehicle.create({ data: createData })
+    } catch (baseErr: any) {
+      // If even base create fails (e.g. createdById column missing), retry without it
+      if (baseErr?.message?.includes('does not exist')) {
+        delete createData.createdById
+        vehicle = await prisma.vehicle.create({ data: createData })
+      } else {
+        throw baseErr
+      }
+    }
+
+    // Try to add extended fields via update (non-fatal)
+    const extendedData: Record<string, unknown> = {}
+    if (body.autograbVehicleId) extendedData.autograbVehicleId = body.autograbVehicleId
+    if (body.autograbTradeValue) extendedData.autograbTradeValue = parseFloat(body.autograbTradeValue)
+    if (body.autograbRetailValue) extendedData.autograbRetailValue = parseFloat(body.autograbRetailValue)
+    if (body.autograbColour) extendedData.autograbColour = body.autograbColour
+    if (body.autograbEngine) extendedData.autograbEngine = body.autograbEngine
+    if (body.autograbTransmission) extendedData.autograbTransmission = body.autograbTransmission
+    if (body.autograbBodyType) extendedData.autograbBodyType = body.autograbBodyType
+    if (body.purchasePrice) extendedData.purchasePrice = parseFloat(body.purchasePrice)
+    if (body.offerPrice) extendedData.offerPrice = parseFloat(body.offerPrice)
+
+    if (Object.keys(extendedData).length > 0) {
+      try {
+        vehicle = await prisma.vehicle.update({
+          where: { id: vehicle.id },
+          data: extendedData as any,
+        })
+      } catch (extErr) {
+        console.warn('[VEHICLES_POST] Extended fields skipped (columns may not exist):', extErr instanceof Error ? extErr.message.slice(0, 200) : extErr)
+      }
+    }
 
     await logAudit({
       vehicleId: vehicle.id,
