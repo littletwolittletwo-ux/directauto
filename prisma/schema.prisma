@@ -67,6 +67,8 @@ model Vehicle {
   docusignSignedAt     DateTime?
   purchasePrice        Float?
   offerPrice           Float?
+  soldAt               DateTime?
+  soldPrice            Float?
   accountsApprovedAt   DateTime?
   accountsApprovedById String?
   easycarsSyncedAt     DateTime?

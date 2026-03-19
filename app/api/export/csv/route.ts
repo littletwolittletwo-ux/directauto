@@ -76,42 +76,82 @@ export async function GET(request: NextRequest) {
     const vehicles = await prisma.vehicle.findMany({
       where,
       orderBy: { submittedAt: 'desc' },
+      include: {
+        ppsrCheck: { select: { isWrittenOff: true, isStolen: true, hasFinance: true, status: true } },
+      },
     })
 
-    // Build CSV
+    // Build CSV — all fields needed for EasyCars import
     const headers = [
       'Ref#',
       'VIN',
-      'Rego',
+      'Registration',
       'Make',
       'Model',
       'Year',
       'Odometer',
-      'Seller',
-      'Phone',
-      'Email',
-      'Status',
+      'Colour',
+      'Body Type',
+      'Transmission',
+      'Engine',
+      'Seller Name',
+      'Seller Phone',
+      'Seller Email',
+      'Buy Price',
+      'Sell Price',
+      'Autograb Trade Value',
+      'Autograb Retail Value',
+      'PPSR Status',
       'Risk Score',
+      'Status',
       'Source',
       'Submitted',
+      'Approved Date',
+      'Sold Date',
+      'Sold Price',
+      'Location',
     ]
 
-    const rows = vehicles.map((v: any) => [
-      escapeCSV(v.confirmationNumber),
-      escapeCSV(v.vin),
-      escapeCSV(v.registrationNumber),
-      escapeCSV(v.make),
-      escapeCSV(v.model),
-      escapeCSV(v.year),
-      escapeCSV(v.odometer),
-      escapeCSV(v.sellerName),
-      escapeCSV(v.sellerPhone),
-      escapeCSV(v.sellerEmail),
-      escapeCSV(v.status.replace(/_/g, ' ')),
-      escapeCSV(v.riskScore),
-      escapeCSV(v.submissionSource.replace(/_/g, ' ')),
-      escapeCSV(v.submittedAt.toISOString().split('T')[0]),
-    ])
+    const rows = vehicles.map((v: any) => {
+      // Derive PPSR status string
+      let ppsrStatus = 'Not Checked'
+      if (v.ppsrCheck?.status === 'COMPLETED') {
+        if (v.ppsrCheck.isStolen) ppsrStatus = 'Stolen'
+        else if (v.ppsrCheck.isWrittenOff) ppsrStatus = 'Written Off'
+        else if (v.ppsrCheck.hasFinance) ppsrStatus = 'Finance'
+        else ppsrStatus = 'Clean'
+      }
+
+      return [
+        escapeCSV(v.confirmationNumber),
+        escapeCSV(v.vin),
+        escapeCSV(v.registrationNumber),
+        escapeCSV(v.make),
+        escapeCSV(v.model),
+        escapeCSV(v.year),
+        escapeCSV(v.odometer),
+        escapeCSV(v.autograbColour),
+        escapeCSV(v.autograbBodyType),
+        escapeCSV(v.autograbTransmission),
+        escapeCSV(v.autograbEngine),
+        escapeCSV(v.sellerName),
+        escapeCSV(v.sellerPhone),
+        escapeCSV(v.sellerEmail),
+        escapeCSV(v.offerPrice),
+        escapeCSV(v.sellerPrice),
+        escapeCSV(v.autograbTradeValue),
+        escapeCSV(v.autograbRetailValue),
+        escapeCSV(ppsrStatus),
+        escapeCSV(v.riskScore),
+        escapeCSV(v.status.replace(/_/g, ' ')),
+        escapeCSV(v.submissionSource.replace(/_/g, ' ')),
+        escapeCSV(v.submittedAt.toISOString().split('T')[0]),
+        escapeCSV(v.accountsApprovedAt ? v.accountsApprovedAt.toISOString().split('T')[0] : ''),
+        escapeCSV(v.soldAt ? v.soldAt.toISOString().split('T')[0] : ''),
+        escapeCSV(v.soldPrice),
+        escapeCSV(v.location),
+      ]
+    })
 
     const csv = [headers.join(','), ...rows.map((r: string[]) => r.join(','))].join('\r\n')
 

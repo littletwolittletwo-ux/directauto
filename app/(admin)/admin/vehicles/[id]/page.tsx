@@ -22,6 +22,7 @@ import {
   Download,
   ExternalLink,
   ClipboardCheck,
+  DollarSign,
 } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -94,6 +95,9 @@ interface Vehicle {
   docusignStatus: string
   docusignSignedAt: string | null
   purchasePrice: number | null
+  offerPrice: number | null
+  soldAt: string | null
+  soldPrice: number | null
   accountsApprovedAt: string | null
   accountsApprovedById: string | null
   easycarsSyncedAt: string | null
@@ -199,6 +203,11 @@ export default function VehicleDetailPage() {
 
   // Purchase price state
   const [editPurchasePrice, setEditPurchasePrice] = useState("")
+
+  // Sold state
+  const [showSoldDialog, setShowSoldDialog] = useState(false)
+  const [soldPriceInput, setSoldPriceInput] = useState("")
+  const [markingSold, setMarkingSold] = useState(false)
 
   // Accounts approval state
   const [approving, setApproving] = useState(false)
@@ -413,6 +422,32 @@ export default function VehicleDetailPage() {
 
   function handleDownloadPDF() {
     window.open(`/api/export/pdf/${vehicleId}`, "_blank")
+  }
+
+  async function handleMarkSold() {
+    if (!soldPriceInput) {
+      toast.error("Enter a sold price")
+      return
+    }
+    setMarkingSold(true)
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          soldAt: new Date().toISOString(),
+          soldPrice: parseFloat(soldPriceInput),
+        }),
+      })
+      if (!res.ok) throw new Error("Failed to mark as sold")
+      toast.success("Vehicle marked as sold")
+      setShowSoldDialog(false)
+      fetchVehicle()
+    } catch {
+      toast.error("Failed to mark as sold")
+    } finally {
+      setMarkingSold(false)
+    }
   }
 
   async function handleIdentityAction(verified: boolean) {
@@ -1956,6 +1991,59 @@ export default function VehicleDetailPage() {
                     <FileText className="mr-1.5 h-4 w-4" />
                     Generate Bill of Sale
                   </Button>
+                )}
+
+                {vehicle.status === "APPROVED" && !vehicle.soldAt && (
+                  <Dialog open={showSoldDialog} onOpenChange={setShowSoldDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full border-green-300 text-green-700 hover:bg-green-50">
+                        <DollarSign className="mr-1.5 h-4 w-4" />
+                        Mark as Sold
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Mark Vehicle as Sold</DialogTitle>
+                        <DialogDescription>
+                          {vehicle.year} {vehicle.make} {vehicle.model} — {vehicle.vin}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-3 py-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-sm">Sold Price ($)</Label>
+                          <Input
+                            type="number"
+                            value={soldPriceInput}
+                            onChange={(e) => setSoldPriceInput(e.target.value)}
+                            placeholder="e.g. 15000"
+                            min={0}
+                            step={100}
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <DialogClose asChild>
+                          <Button variant="outline">Cancel</Button>
+                        </DialogClose>
+                        <Button onClick={handleMarkSold} disabled={markingSold || !soldPriceInput}>
+                          {markingSold ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+                          Confirm Sale
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
+
+                {vehicle.soldAt && (
+                  <div className="rounded-lg border border-green-300 bg-green-50 p-3 text-center">
+                    <p className="text-sm font-semibold text-green-700">Sold</p>
+                    {vehicle.soldPrice && (
+                      <p className="text-lg font-bold text-green-800">${Number(vehicle.soldPrice).toLocaleString()}</p>
+                    )}
+                    <p className="text-xs text-green-600">
+                      {format(new Date(vehicle.soldAt), "dd MMM yyyy")}
+                    </p>
+                  </div>
                 )}
               </CardContent>
             </Card>

@@ -102,6 +102,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       'inspectionRepairCost',
       'inspectionNotes',
       'docusignStatus',
+      'offerPrice',
+      'soldPrice',
+      'soldAt',
     ]
 
     const updateData: Record<string, unknown> = {}
@@ -115,8 +118,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         // Type coerce numeric fields
         if (field === 'year' || field === 'odometer') {
           newValue = parseInt(newValue, 10)
-        } else if (['sellerPrice', 'purchasePrice', 'autograbTradeValue', 'autograbRetailValue', 'inspectionRepairCost'].includes(field)) {
+        } else if (['sellerPrice', 'purchasePrice', 'autograbTradeValue', 'autograbRetailValue', 'inspectionRepairCost', 'offerPrice', 'soldPrice'].includes(field)) {
           newValue = newValue !== null && newValue !== '' ? parseFloat(newValue) : null
+        } else if (field === 'soldAt') {
+          newValue = newValue ? new Date(newValue) : null
         }
 
         updateData[field] = newValue

@@ -142,6 +142,9 @@ export default async function VehiclesListPage({
       orderBy: { [sortBy]: sortOrder },
       skip: (page - 1) * limit,
       take: limit,
+      include: {
+        ppsrCheck: { select: { isWrittenOff: true, isStolen: true, hasFinance: true, status: true } },
+      },
     }),
     prisma.vehicle.count({ where }),
   ])
@@ -206,60 +209,41 @@ export default async function VehiclesListPage({
           <TableHeader>
             <TableRow>
               <TableHead>
-                <Link
-                  href={sortUrl("confirmationNumber")}
-                  className="flex items-center font-medium"
-                >
+                <Link href={sortUrl("confirmationNumber")} className="flex items-center font-medium">
                   Ref # <SortIcon field="confirmationNumber" />
                 </Link>
               </TableHead>
               <TableHead>
-                <Link
-                  href={sortUrl("vin")}
-                  className="flex items-center font-medium"
-                >
+                <Link href={sortUrl("make")} className="flex items-center font-medium">
+                  Vehicle <SortIcon field="make" />
+                </Link>
+              </TableHead>
+              <TableHead>
+                <Link href={sortUrl("vin")} className="flex items-center font-medium">
                   VIN <SortIcon field="vin" />
                 </Link>
               </TableHead>
               <TableHead>
-                <Link
-                  href={sortUrl("make")}
-                  className="flex items-center font-medium"
-                >
-                  Make/Model/Year <SortIcon field="make" />
-                </Link>
-              </TableHead>
-              <TableHead>
-                <Link
-                  href={sortUrl("sellerName")}
-                  className="flex items-center font-medium"
-                >
+                <Link href={sortUrl("sellerName")} className="flex items-center font-medium">
                   Seller <SortIcon field="sellerName" />
                 </Link>
               </TableHead>
+              <TableHead className="text-right">Buy</TableHead>
+              <TableHead className="text-right">Sell</TableHead>
+              <TableHead>PPSR</TableHead>
               <TableHead>
-                <Link
-                  href={sortUrl("submittedAt")}
-                  className="flex items-center font-medium"
-                >
-                  Submitted <SortIcon field="submittedAt" />
+                <Link href={sortUrl("riskScore")} className="flex items-center font-medium">
+                  Risk <SortIcon field="riskScore" />
                 </Link>
               </TableHead>
-              <TableHead>Source</TableHead>
               <TableHead>
-                <Link
-                  href={sortUrl("status")}
-                  className="flex items-center font-medium"
-                >
+                <Link href={sortUrl("status")} className="flex items-center font-medium">
                   Status <SortIcon field="status" />
                 </Link>
               </TableHead>
               <TableHead>
-                <Link
-                  href={sortUrl("riskScore")}
-                  className="flex items-center font-medium"
-                >
-                  Risk <SortIcon field="riskScore" />
+                <Link href={sortUrl("submittedAt")} className="flex items-center font-medium">
+                  Submitted <SortIcon field="submittedAt" />
                 </Link>
               </TableHead>
               <TableHead>Actions</TableHead>
@@ -269,7 +253,7 @@ export default async function VehiclesListPage({
             {vehicles.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={9}
+                  colSpan={11}
                   className="py-8 text-center text-muted-foreground"
                 >
                   No vehicles found matching your filters.
@@ -277,39 +261,52 @@ export default async function VehiclesListPage({
               </TableRow>
             ) : (
               vehicles.map((v) => {
-                const sourceBadge = SOURCE_BADGES[v.submissionSource]
+                const ppsr = (v as any).ppsrCheck
+                let ppsrLabel = '—'
+                let ppsrClass = 'text-gray-400'
+                if (ppsr?.status === 'COMPLETED') {
+                  if (ppsr.isStolen) { ppsrLabel = 'Stolen'; ppsrClass = 'text-red-700 bg-red-50 border-red-200' }
+                  else if (ppsr.isWrittenOff) { ppsrLabel = 'W/Off'; ppsrClass = 'text-red-700 bg-red-50 border-red-200' }
+                  else if (ppsr.hasFinance) { ppsrLabel = 'Finance'; ppsrClass = 'text-orange-700 bg-orange-50 border-orange-200' }
+                  else { ppsrLabel = 'Clear'; ppsrClass = 'text-green-700 bg-green-50 border-green-200' }
+                }
+                const buyPrice = (v as any).offerPrice
+                const sellPrice = v.sellerPrice
                 return (
                   <TableRow key={v.id}>
                     <TableCell className="font-mono text-xs">
                       {v.confirmationNumber}
                     </TableCell>
-                    <TableCell className="font-mono text-xs">
+                    <TableCell>
+                      <div className="text-sm font-medium">{v.year} {v.make} {v.model}</div>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
                       {v.vin}
                     </TableCell>
-                    <TableCell>
-                      {v.make} {v.model} ({v.year})
+                    <TableCell className="text-sm">{v.sellerName}</TableCell>
+                    <TableCell className="text-right text-sm tabular-nums">
+                      {buyPrice ? `$${Number(buyPrice).toLocaleString()}` : '—'}
                     </TableCell>
-                    <TableCell>{v.sellerName}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {format(new Date(v.submittedAt), "MMM d, yyyy")}
+                    <TableCell className="text-right text-sm tabular-nums">
+                      {sellPrice ? `$${Number(sellPrice).toLocaleString()}` : '—'}
                     </TableCell>
                     <TableCell>
-                      {sourceBadge && (
-                        <span
-                          className={cn(
-                            "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
-                            sourceBadge.className
-                          )}
-                        >
-                          {sourceBadge.label}
+                      {ppsrLabel !== '—' ? (
+                        <span className={cn("inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium", ppsrClass)}>
+                          {ppsrLabel}
                         </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <RiskBadge score={v.riskScore} />
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={v.status} />
                     </TableCell>
-                    <TableCell>
-                      <RiskBadge score={v.riskScore} />
+                    <TableCell className="text-xs text-muted-foreground">
+                      {format(new Date(v.submittedAt), "MMM d, yyyy")}
                     </TableCell>
                     <TableCell>
                       <VehicleActionCell id={v.id} status={v.status} />

@@ -73,6 +73,9 @@ export default async function AdminDashboardPage() {
       prisma.vehicle.findMany({
         orderBy: { submittedAt: "desc" },
         take: 100,
+        include: {
+          ppsrCheck: { select: { isWrittenOff: true, isStolen: true, hasFinance: true, status: true } },
+        },
       }),
       prisma.vehicle.count(),
     ])
@@ -201,7 +204,11 @@ export default async function AdminDashboardPage() {
                 <TableRow>
                   <TableHead>Ref #</TableHead>
                   <TableHead>Vehicle</TableHead>
+                  <TableHead>VIN</TableHead>
                   <TableHead>Seller</TableHead>
+                  <TableHead className="text-right">Buy</TableHead>
+                  <TableHead className="text-right">Sell</TableHead>
+                  <TableHead>PPSR</TableHead>
                   <TableHead>Risk</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Submitted</TableHead>
@@ -212,7 +219,7 @@ export default async function AdminDashboardPage() {
                 {recentVehicles.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={8}
+                      colSpan={11}
                       className="py-8 text-center text-muted-foreground"
                     >
                       No submissions yet.
@@ -220,14 +227,21 @@ export default async function AdminDashboardPage() {
                   </TableRow>
                 ) : (
                   recentVehicles.map((v) => {
-                    const flags = Array.isArray(v.riskFlags) ? v.riskFlags as string[] : []
-                    const hasPpsrIssue = flags.some(f =>
-                      typeof f === 'string' && (f.includes('stolen') || f.includes('written off') || f.includes('Finance'))
-                    )
+                    const ppsr = (v as any).ppsrCheck
+                    let ppsrLabel = '—'
+                    let ppsrClass = 'text-gray-400'
+                    if (ppsr?.status === 'COMPLETED') {
+                      if (ppsr.isStolen) { ppsrLabel = 'Stolen'; ppsrClass = 'text-red-700 bg-red-50 border-red-200' }
+                      else if (ppsr.isWrittenOff) { ppsrLabel = 'W/Off'; ppsrClass = 'text-red-700 bg-red-50 border-red-200' }
+                      else if (ppsr.hasFinance) { ppsrLabel = 'Finance'; ppsrClass = 'text-orange-700 bg-orange-50 border-orange-200' }
+                      else { ppsrLabel = 'Clear'; ppsrClass = 'text-green-700 bg-green-50 border-green-200' }
+                    }
                     const riskColor = v.riskScore === 0 ? 'text-gray-400'
                       : v.riskScore <= 20 ? 'text-green-600'
                       : v.riskScore <= 50 ? 'text-yellow-600'
                       : 'text-red-600'
+                    const buyPrice = (v as any).offerPrice
+                    const sellPrice = v.sellerPrice
                     return (
                       <TableRow key={v.id}>
                         <TableCell className="font-mono text-xs">
@@ -235,18 +249,30 @@ export default async function AdminDashboardPage() {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm font-medium">{v.year} {v.make} {v.model}</div>
-                          <div className="text-xs text-muted-foreground font-mono">{v.vin}</div>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {v.vin}
                         </TableCell>
                         <TableCell className="text-sm">{v.sellerName}</TableCell>
+                        <TableCell className="text-right text-sm tabular-nums">
+                          {buyPrice ? `$${Number(buyPrice).toLocaleString()}` : '—'}
+                        </TableCell>
+                        <TableCell className="text-right text-sm tabular-nums">
+                          {sellPrice ? `$${Number(sellPrice).toLocaleString()}` : '—'}
+                        </TableCell>
+                        <TableCell>
+                          {ppsrLabel !== '—' ? (
+                            <span className={cn("inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium", ppsrClass)}>
+                              {ppsrLabel}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <span className={cn("text-sm font-semibold", riskColor)}>
                             {v.riskScore}
                           </span>
-                          {hasPpsrIssue && (
-                            <span className="ml-1.5 inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700 border border-red-200">
-                              PPSR
-                            </span>
-                          )}
                         </TableCell>
                         <TableCell>
                           <StatusBadge status={v.status} />
