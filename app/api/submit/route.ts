@@ -86,7 +86,6 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     const missingFields: string[] = []
     if (!vin) missingFields.push('vin')
-    if (!registrationNumber) missingFields.push('registrationNumber')
     if (!make) missingFields.push('make')
     if (!model) missingFields.push('model')
     if (!year) missingFields.push('year')
@@ -121,38 +120,94 @@ export async function POST(request: NextRequest) {
     // Determine submission source
     const submissionSource = tokenId ? 'SINGLE_USE_LINK' : 'PUBLIC_PORTAL'
 
-    // Generate confirmation number
-    const confirmationNumber = await generateConfirmationNumber()
-    console.log('[SUBMIT] Starting submission for VIN:', vin, 'confirmation:', confirmationNumber)
+    let vehicle: { id: string; confirmationNumber: string }
 
-    // Create Vehicle record — only core fields that always exist in DB
-    let vehicle
-    try {
-      vehicle = await prisma.vehicle.create({
-        data: {
-          confirmationNumber,
-          vin: vin.toUpperCase(),
-          registrationNumber,
-          make,
-          model,
-          year: parseInt(year, 10),
-          odometer: parseInt(odometer, 10),
-          sellerName,
-          sellerPhone,
-          sellerEmail,
-          submissionSource,
-          submissionToken: tokenId || undefined,
-          ipAddress: ip,
-          sellerSignature: signatureName,
-          signedAt: new Date(),
-          status: 'PENDING_VERIFICATION',
-        },
+    // If token provided, try to find existing vehicle (created by staff on acquire page)
+    if (tokenId) {
+      const existingVehicle = await prisma.vehicle.findFirst({
+        where: { vin: vin.toUpperCase() },
+        select: { id: true, confirmationNumber: true },
       })
-      console.log('[SUBMIT] Vehicle created:', vehicle.id)
-    } catch (createErr) {
-      console.error('[SUBMIT] Vehicle create failed:', createErr instanceof Error ? createErr.message : createErr)
-      throw createErr
+
+      if (existingVehicle) {
+        // UPDATE existing vehicle with seller details
+        console.log('[SUBMIT] Token flow — updating existing vehicle:', existingVehicle.id)
+        await prisma.vehicle.update({
+          where: { id: existingVehicle.id },
+          data: {
+            sellerName,
+            sellerPhone,
+            sellerEmail,
+            registrationNumber: registrationNumber || undefined,
+            odometer: parseInt(odometer, 10),
+            submissionSource,
+            submissionToken: tokenId,
+            ipAddress: ip,
+            sellerSignature: signatureName,
+            signedAt: new Date(),
+            status: 'PENDING_VERIFICATION',
+          },
+        })
+        vehicle = existingVehicle
+      } else {
+        // Token provided but vehicle not found — create new
+        console.log('[SUBMIT] Token flow — no existing vehicle for VIN, creating new')
+        const confirmationNumber = await generateConfirmationNumber()
+        const created = await prisma.vehicle.create({
+          data: {
+            confirmationNumber,
+            vin: vin.toUpperCase(),
+            registrationNumber,
+            make,
+            model,
+            year: parseInt(year, 10),
+            odometer: parseInt(odometer, 10),
+            sellerName,
+            sellerPhone,
+            sellerEmail,
+            submissionSource,
+            submissionToken: tokenId,
+            ipAddress: ip,
+            sellerSignature: signatureName,
+            signedAt: new Date(),
+            status: 'PENDING_VERIFICATION',
+          },
+        })
+        vehicle = { id: created.id, confirmationNumber: created.confirmationNumber }
+      }
+    } else {
+      // Regular public form — create new vehicle
+      const confirmationNumber = await generateConfirmationNumber()
+      console.log('[SUBMIT] Public form — creating new vehicle, VIN:', vin, 'confirmation:', confirmationNumber)
+
+      try {
+        const created = await prisma.vehicle.create({
+          data: {
+            confirmationNumber,
+            vin: vin.toUpperCase(),
+            registrationNumber,
+            make,
+            model,
+            year: parseInt(year, 10),
+            odometer: parseInt(odometer, 10),
+            sellerName,
+            sellerPhone,
+            sellerEmail,
+            submissionSource,
+            ipAddress: ip,
+            sellerSignature: signatureName,
+            signedAt: new Date(),
+            status: 'PENDING_VERIFICATION',
+          },
+        })
+        vehicle = { id: created.id, confirmationNumber: created.confirmationNumber }
+      } catch (createErr) {
+        console.error('[SUBMIT] Vehicle create failed:', createErr instanceof Error ? createErr.message : createErr)
+        throw createErr
+      }
     }
+
+    console.log('[SUBMIT] Vehicle ready:', vehicle.id, vehicle.confirmationNumber)
 
     // Validate licence expiry date before creating identity
     let parsedLicenceExpiry: Date = new Date()
@@ -302,7 +357,7 @@ export async function POST(request: NextRequest) {
         action: 'VEHICLE_SUBMITTED',
         details: {
           source: submissionSource,
-          confirmationNumber,
+          confirmationNumber: vehicle.confirmationNumber,
         } as Prisma.InputJsonValue,
         ipAddress: ip,
       })
@@ -320,7 +375,7 @@ export async function POST(request: NextRequest) {
       await sendSellerConfirmation({
         to: sellerEmail,
         sellerName,
-        confirmationNumber,
+        confirmationNumber: vehicle.confirmationNumber,
         vin: vin.toUpperCase(),
         make,
         model,
@@ -334,7 +389,7 @@ export async function POST(request: NextRequest) {
       if (settings?.notifyOnSubmit && settings?.contactEmail) {
         await sendAdminNewSubmission({
           to: settings.contactEmail,
-          confirmationNumber,
+          confirmationNumber: vehicle.confirmationNumber,
           sellerName,
           make,
           model,
@@ -348,9 +403,9 @@ export async function POST(request: NextRequest) {
       console.error('[SUBMIT] Email sending failed (non-fatal):', emailErr instanceof Error ? emailErr.message : emailErr)
     }
 
-    console.log('[SUBMIT] Success! Confirmation:', confirmationNumber)
+    console.log('[SUBMIT] Success! Confirmation:', vehicle.confirmationNumber)
     return NextResponse.json({
-      confirmationNumber,
+      confirmationNumber: vehicle.confirmationNumber,
       vehicleId: vehicle.id,
     })
   } catch (error) {
