@@ -108,13 +108,23 @@ const SERIALIZABLE_FIELDS = [
   "honeypot",
 ] as const;
 
+interface PrefillData {
+  make?: string;
+  model?: string;
+  year?: string;
+  odometer?: string;
+  registrationNumber?: string;
+}
+
 interface MultiStepFormProps {
   prefillVin?: string;
+  prefillData?: PrefillData;
   tokenId?: string;
 }
 
 export default function MultiStepForm({
   prefillVin,
+  prefillData,
   tokenId,
 }: MultiStepFormProps) {
   const [currentStep, setCurrentStep] = useState(1);
@@ -126,6 +136,9 @@ export default function MultiStepForm({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
+  // Check if vehicle details are pre-filled from token
+  const hasVehiclePrefill = !!(prefillVin && prefillData?.make);
+
   // Clear old form data on mount so stale drafts don't cause issues
   useEffect(() => {
     try {
@@ -135,12 +148,20 @@ export default function MultiStepForm({
     }
 
     // Apply prefill if provided
-    if (prefillVin) {
-      setFormData((prev) => ({ ...prev, vin: prefillVin }));
+    if (prefillVin || prefillData) {
+      setFormData((prev) => ({
+        ...prev,
+        ...(prefillVin ? { vin: prefillVin } : {}),
+        ...(prefillData?.make ? { make: prefillData.make } : {}),
+        ...(prefillData?.model ? { model: prefillData.model } : {}),
+        ...(prefillData?.year ? { year: prefillData.year } : {}),
+        ...(prefillData?.odometer ? { odometer: prefillData.odometer } : {}),
+        ...(prefillData?.registrationNumber ? { registrationNumber: prefillData.registrationNumber } : {}),
+      }));
     }
 
     setMounted(true);
-  }, [prefillVin]);
+  }, [prefillVin, prefillData]);
 
   // Persist serializable fields to localStorage on every change
   useEffect(() => {
@@ -392,7 +413,9 @@ export default function MultiStepForm({
                 Step {currentStep}: {STEPS[currentStep - 1].label}
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
-                {currentStep === 1 && "Enter details about the vehicle you are selling."}
+                {currentStep === 1 && (hasVehiclePrefill
+                  ? "Vehicle details have been pre-filled. Please verify and continue."
+                  : "Enter details about the vehicle you are selling.")}
                 {currentStep === 2 && "Provide your contact and personal details."}
                 {currentStep === 3 && "Upload your identity documents for verification."}
                 {currentStep === 4 && "Provide proof of vehicle ownership."}
@@ -406,6 +429,7 @@ export default function MultiStepForm({
                 formData={formData}
                 onChange={handleChange}
                 vinLocked={!!prefillVin}
+                fieldsLocked={hasVehiclePrefill}
               />
             )}
             {currentStep === 2 && (

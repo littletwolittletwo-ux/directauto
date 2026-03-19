@@ -37,11 +37,19 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + 7)
 
-    // Create SubmissionToken record
+    // Create SubmissionToken record with all vehicle details
     const submissionToken = await prisma.submissionToken.create({
       data: {
         token,
         vehicleVin: vehicle.vin,
+        vehicleMake: vehicle.make,
+        vehicleModel: vehicle.model,
+        vehicleYear: vehicle.year,
+        vehicleOdometer: vehicle.odometer,
+        vehicleRego: vehicle.registrationNumber,
+        vehicleColour: (vehicle as Record<string, unknown>).autograbColour as string || null,
+        vehicleBodyType: (vehicle as Record<string, unknown>).autograbBodyType as string || null,
+        vehicleTransmission: (vehicle as Record<string, unknown>).autograbTransmission as string || null,
         expiresAt,
       },
     })

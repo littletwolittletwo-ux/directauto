@@ -159,12 +159,20 @@ model AuditLog {
 }
 
 model SubmissionToken {
-  id         String   @id @default(uuid())
-  token      String   @unique
-  vehicleVin String?
-  used       Boolean  @default(false)
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
+  id                 String   @id @default(uuid())
+  token              String   @unique
+  vehicleVin         String?
+  vehicleMake        String?
+  vehicleModel       String?
+  vehicleYear        Int?
+  vehicleOdometer    Int?
+  vehicleRego        String?
+  vehicleColour      String?
+  vehicleBodyType    String?
+  vehicleTransmission String?
+  used               Boolean  @default(false)
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
 }
 
 model Settings {

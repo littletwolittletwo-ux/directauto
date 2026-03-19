@@ -15,11 +15,12 @@ interface Step1Props {
   };
   onChange: (field: string, value: string) => void;
   vinLocked?: boolean;
+  fieldsLocked?: boolean;
 }
 
 const VIN_REGEX = /^[A-HJ-NPR-Z0-9]{17}$/i;
 
-export default function Step1Vehicle({ formData, onChange, vinLocked }: Step1Props) {
+export default function Step1Vehicle({ formData, onChange, vinLocked, fieldsLocked }: Step1Props) {
   const [vinError, setVinError] = useState<string | null>(null);
 
   function handleVinBlur() {
@@ -39,8 +40,18 @@ export default function Step1Vehicle({ formData, onChange, vinLocked }: Step1Pro
     setVinError(null);
   }
 
+  const locked = fieldsLocked || false;
+
   return (
     <div className="space-y-5">
+      {locked && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <p className="text-sm text-blue-800 font-medium">
+            Vehicle details have been pre-filled by the dealership. Please complete your personal details below.
+          </p>
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="vin" className="text-sm font-medium">
           VIN (Vehicle Identification Number) <span className="text-red-500">*</span>
@@ -52,14 +63,15 @@ export default function Step1Vehicle({ formData, onChange, vinLocked }: Step1Pro
           onBlur={handleVinBlur}
           placeholder="e.g. 1HGCM82633A004352"
           maxLength={17}
-          disabled={vinLocked}
+          disabled={vinLocked || locked}
+          readOnly={vinLocked || locked}
           className="py-3 h-auto text-base"
           aria-invalid={vinError ? true : undefined}
         />
         {vinError && (
           <p className="text-sm text-red-500 mt-1">{vinError}</p>
         )}
-        {vinLocked && (
+        {(vinLocked || locked) && (
           <p className="text-xs text-muted-foreground">VIN has been pre-filled and cannot be changed.</p>
         )}
       </div>
@@ -73,6 +85,8 @@ export default function Step1Vehicle({ formData, onChange, vinLocked }: Step1Pro
           value={formData.registrationNumber}
           onChange={(e) => onChange("registrationNumber", e.target.value.toUpperCase())}
           placeholder="e.g. ABC123"
+          disabled={locked}
+          readOnly={locked}
           className="py-3 h-auto text-base"
         />
       </div>
@@ -87,6 +101,8 @@ export default function Step1Vehicle({ formData, onChange, vinLocked }: Step1Pro
             value={formData.make}
             onChange={(e) => onChange("make", e.target.value)}
             placeholder="e.g. Toyota"
+            disabled={locked}
+            readOnly={locked}
             className="py-3 h-auto text-base"
           />
         </div>
@@ -100,6 +116,8 @@ export default function Step1Vehicle({ formData, onChange, vinLocked }: Step1Pro
             value={formData.model}
             onChange={(e) => onChange("model", e.target.value)}
             placeholder="e.g. Camry"
+            disabled={locked}
+            readOnly={locked}
             className="py-3 h-auto text-base"
           />
         </div>
@@ -118,6 +136,8 @@ export default function Step1Vehicle({ formData, onChange, vinLocked }: Step1Pro
             placeholder="e.g. 2020"
             min={1900}
             max={new Date().getFullYear() + 1}
+            disabled={locked}
+            readOnly={locked}
             className="py-3 h-auto text-base"
           />
         </div>
@@ -134,6 +154,8 @@ export default function Step1Vehicle({ formData, onChange, vinLocked }: Step1Pro
               onChange={(e) => onChange("odometer", e.target.value)}
               placeholder="e.g. 85000"
               min={0}
+              disabled={locked}
+              readOnly={locked}
               className="py-3 h-auto text-base pr-12"
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">

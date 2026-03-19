@@ -83,6 +83,13 @@ export default async function TokenSubmitPage({ params }: TokenPageProps) {
         {/* Multi-Step Form with prefill */}
         <MultiStepForm
           prefillVin={submissionToken.vehicleVin || undefined}
+          prefillData={{
+            make: submissionToken.vehicleMake || '',
+            model: submissionToken.vehicleModel || '',
+            year: submissionToken.vehicleYear ? String(submissionToken.vehicleYear) : '',
+            odometer: submissionToken.vehicleOdometer ? String(submissionToken.vehicleOdometer) : '',
+            registrationNumber: submissionToken.vehicleRego || '',
+          }}
           tokenId={submissionToken.id}
         />
       </div>
