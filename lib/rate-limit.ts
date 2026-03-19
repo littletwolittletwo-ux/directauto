@@ -5,7 +5,7 @@ export function rateLimit(
   maxRequests?: number,
   windowMs?: number
 ): { allowed: boolean; remaining: number } {
-  const max = maxRequests ?? parseInt(process.env.RATE_LIMIT_MAX || '3')
+  const max = maxRequests ?? parseInt(process.env.RATE_LIMIT_MAX || '100') // TODO: change back to 3 before launch
   const window = windowMs ?? parseInt(process.env.RATE_LIMIT_WINDOW_MS || '3600000')
   const now = Date.now()
   const entry = rateMap.get(ip)
