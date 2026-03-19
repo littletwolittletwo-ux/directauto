@@ -62,7 +62,7 @@ export async function lookupByRego(rego: string, state: string): Promise<Autogra
   }
 
   const data = await response.json()
-  console.log('[AUTOGRAB] Rego lookup result:', JSON.stringify(data).slice(0, 500))
+  console.log('[AUTOGRAB] Rego lookup raw response:', JSON.stringify(data))
   return mapVehicleResponse(data)
 }
 
@@ -83,7 +83,7 @@ export async function lookupByVIN(vin: string): Promise<AutograbVehicle> {
   }
 
   const data = await response.json()
-  console.log('[AUTOGRAB] VIN lookup result:', JSON.stringify(data).slice(0, 500))
+  console.log('[AUTOGRAB] VIN lookup raw response:', JSON.stringify(data))
   return mapVehicleResponse(data)
 }
 
@@ -121,20 +121,80 @@ export async function getValuation(vehicleId: string, kms: number): Promise<Auto
   }
 }
 
-function mapVehicleResponse(data: Record<string, unknown>): AutograbVehicle {
-  return {
-    vehicle_id: String(data.vehicle_id ?? data.id ?? ''),
-    make: String(data.make ?? ''),
-    model: String(data.model ?? ''),
-    year: Number(data.year ?? data.year_of_manufacture ?? 0),
-    vin: String(data.vin ?? ''),
-    registration_number: String(data.registration_number ?? data.plate ?? ''),
-    colour: String(data.colour ?? data.color ?? ''),
-    engine: String(data.engine ?? data.engine_description ?? ''),
-    transmission: String(data.transmission ?? ''),
-    body_type: String(data.body_type ?? data.body_style ?? ''),
-    odometer: Number(data.odometer ?? data.kms ?? 0),
+function mapVehicleResponse(raw: Record<string, unknown>): AutograbVehicle {
+  // Autograb may nest the vehicle data inside data, result, results[0], vehicle, etc.
+  const d = unwrapResponse(raw)
+
+  console.log('[AUTOGRAB] Unwrapped vehicle data keys:', Object.keys(d))
+
+  const result = {
+    vehicle_id: str(d.vehicle_id, d.vehicleId, d.id, d.autograb_id),
+    make: str(d.make, d.Make),
+    model: str(d.model, d.Model, d.family, d.Family),
+    year: num(d.year, d.Year, d.year_of_manufacture, d.yearOfManufacture, d.build_year, d.buildYear),
+    vin: str(d.vin, d.Vin, d.VIN, d.chassis_number, d.chassisNumber, d.chassis),
+    registration_number: str(d.registration_number, d.registrationNumber, d.plate, d.Plate, d.rego, d.Rego, d.registration, d.plate_number, d.plateNumber),
+    colour: str(d.colour, d.color, d.Colour, d.Color, d.exterior_colour, d.exteriorColour),
+    engine: str(d.engine, d.Engine, d.engine_description, d.engineDescription, d.engine_type),
+    transmission: str(d.transmission, d.Transmission, d.transmission_type, d.transmissionType, d.gearbox),
+    body_type: str(d.body_type, d.bodyType, d.body_style, d.bodyStyle, d.BodyType, d.body, d.Body),
+    odometer: num(d.odometer, d.Odometer, d.kms, d.km, d.mileage),
   }
+
+  console.log('[AUTOGRAB] Mapped vehicle:', JSON.stringify(result))
+  return result
+}
+
+function unwrapResponse(data: Record<string, unknown>): Record<string, unknown> {
+  // Try common nesting patterns: data.data, data.result, data.results[0], data.vehicle
+  for (const key of ['data', 'result', 'vehicle', 'item']) {
+    const nested = data[key]
+    if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+      return nested as Record<string, unknown>
+    }
+  }
+
+  for (const key of ['results', 'data', 'vehicles', 'items']) {
+    const nested = data[key]
+    if (Array.isArray(nested) && nested.length > 0 && typeof nested[0] === 'object') {
+      return nested[0] as Record<string, unknown>
+    }
+  }
+
+  // Check if the top-level response itself has vehicle fields
+  if (data.make || data.vin || data.vehicle_id || data.year || data.VIN || data.Make) {
+    return data
+  }
+
+  // Last resort: if there's a single nested object that looks like vehicle data, use it
+  const values = Object.values(data)
+  for (const val of values) {
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      const obj = val as Record<string, unknown>
+      if (obj.make || obj.vin || obj.year || obj.VIN || obj.Make) {
+        return obj
+      }
+    }
+  }
+
+  return data
+}
+
+function str(...candidates: unknown[]): string {
+  for (const c of candidates) {
+    if (c !== undefined && c !== null && c !== '') return String(c)
+  }
+  return ''
+}
+
+function num(...candidates: unknown[]): number {
+  for (const c of candidates) {
+    if (c !== undefined && c !== null) {
+      const n = Number(c)
+      if (!isNaN(n) && n > 0) return n
+    }
+  }
+  return 0
 }
 
 /**

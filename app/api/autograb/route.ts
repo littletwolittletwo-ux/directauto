@@ -39,6 +39,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log('[AUTOGRAB] Returning to frontend — vehicle:', JSON.stringify(vehicle), 'valuation:', JSON.stringify(valuation))
+
     return NextResponse.json({
       vehicle,
       valuation,

@@ -350,13 +350,22 @@ export default function AcquireVehiclePage() {
           {lookupResult && (
             <div className="mt-4 rounded-lg border bg-green-50 p-3">
               <p className="text-sm font-medium text-green-800">
-                Found: {lookupResult.vehicle.year} {lookupResult.vehicle.make}{" "}
-                {lookupResult.vehicle.model}
+                {lookupResult.vehicle.make || lookupResult.vehicle.model
+                  ? `Found: ${lookupResult.vehicle.year || ''} ${lookupResult.vehicle.make} ${lookupResult.vehicle.model}`.trim()
+                  : 'Vehicle found — details populated below'}
               </p>
-              <p className="text-xs text-green-700">
-                VIN: {lookupResult.vehicle.vin} | Rego:{" "}
-                {lookupResult.vehicle.registration_number}
-              </p>
+              {(lookupResult.vehicle.vin || lookupResult.vehicle.registration_number) && (
+                <p className="text-xs text-green-700">
+                  {lookupResult.vehicle.vin ? `VIN: ${lookupResult.vehicle.vin}` : ''}
+                  {lookupResult.vehicle.vin && lookupResult.vehicle.registration_number ? ' | ' : ''}
+                  {lookupResult.vehicle.registration_number ? `Rego: ${lookupResult.vehicle.registration_number}` : ''}
+                </p>
+              )}
+              {lookupResult.valuation.trade_value > 0 && (
+                <p className="text-xs text-green-700 mt-1">
+                  Trade: ${lookupResult.valuation.trade_value.toLocaleString()} | Retail: ${lookupResult.valuation.retail_value.toLocaleString()}
+                </p>
+              )}
             </div>
           )}
         </CardContent>
