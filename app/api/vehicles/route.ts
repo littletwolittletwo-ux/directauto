@@ -150,7 +150,12 @@ export async function POST(request: NextRequest) {
       autograbVehicleId,
       autograbTradeValue,
       autograbRetailValue,
+      autograbColour,
+      autograbEngine,
+      autograbTransmission,
+      autograbBodyType,
       purchasePrice,
+      offerPrice,
     } = body
 
     // Validate required fields
@@ -188,7 +193,12 @@ export async function POST(request: NextRequest) {
         autograbVehicleId: autograbVehicleId || null,
         autograbTradeValue: autograbTradeValue ? parseFloat(autograbTradeValue) : null,
         autograbRetailValue: autograbRetailValue ? parseFloat(autograbRetailValue) : null,
+        autograbColour: autograbColour || null,
+        autograbEngine: autograbEngine || null,
+        autograbTransmission: autograbTransmission || null,
+        autograbBodyType: autograbBodyType || null,
         purchasePrice: purchasePrice ? parseFloat(purchasePrice) : null,
+        offerPrice: offerPrice ? parseFloat(offerPrice) : null,
         submissionSource: 'STAFF_ENTRY',
         createdById: (session.user as any).id,
         status: 'PENDING_VERIFICATION',

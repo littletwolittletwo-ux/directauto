@@ -33,18 +33,23 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Purchase price must be set before sending Bill of Sale' }, { status: 400 })
     }
 
+    // Get settings for ABN
+    const settings = await prisma.settings.findUnique({ where: { id: 'singleton' } })
+
     const billOfSaleData: BillOfSaleData = {
       sellerName: vehicle.identity?.fullLegalName || vehicle.sellerName,
       sellerAddress: vehicle.identity?.address || '',
       sellerLicenceNumber: vehicle.identity?.driversLicenceNumber || '',
-      buyerName: 'Direct Auto Wholesale',
+      buyerName: settings?.dealershipName || 'Direct Auto Wholesale',
       buyerAddress: '697 Burke Road Camberwell VIC 3124',
+      buyerAbn: settings?.abn || undefined,
       vehicleMake: vehicle.make,
       vehicleModel: vehicle.model,
       vehicleYear: vehicle.year,
       vehicleVin: vehicle.vin,
       vehicleRego: vehicle.registrationNumber,
       vehicleOdometer: vehicle.odometer,
+      vehicleColour: vehicle.autograbColour || undefined,
       purchasePrice: vehicle.purchasePrice,
       sellerEmail: vehicle.sellerEmail,
       date: new Date().toLocaleDateString('en-AU'),

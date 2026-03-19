@@ -1,32 +1,33 @@
 /**
  * DocuSign eSignature REST API client
  * Auth: JWT Grant (server-to-server)
+ * Configured for Australian production (au.docusign.net)
  */
 
 interface DocuSignConfig {
   integrationKey: string
-  secretKey: string
   accountId: string
   userId: string
   privateKey: string
-  baseUrl: string
+  basePath: string
+  authServer: string
 }
 
 function getConfig(): DocuSignConfig {
   const integrationKey = process.env.DOCUSIGN_INTEGRATION_KEY
-  const secretKey = process.env.DOCUSIGN_SECRET_KEY
   const accountId = process.env.DOCUSIGN_ACCOUNT_ID
   const userId = process.env.DOCUSIGN_USER_ID
   const privateKey = process.env.DOCUSIGN_PRIVATE_KEY
-  const baseUrl = process.env.DOCUSIGN_BASE_URL || 'https://demo.docusign.net/restapi'
+  const basePath = process.env.DOCUSIGN_BASE_PATH || 'https://au.docusign.net/restapi'
+  const authServer = process.env.DOCUSIGN_AUTH_SERVER || 'account.docusign.com'
 
-  if (!integrationKey || !secretKey || !accountId || !userId || !privateKey) {
+  if (!integrationKey || !accountId || !userId || !privateKey) {
     throw new Error(
-      'DocuSign credentials not configured. Set DOCUSIGN_INTEGRATION_KEY, DOCUSIGN_SECRET_KEY, DOCUSIGN_ACCOUNT_ID, DOCUSIGN_USER_ID, and DOCUSIGN_PRIVATE_KEY.'
+      'DocuSign credentials not configured. Set DOCUSIGN_INTEGRATION_KEY, DOCUSIGN_ACCOUNT_ID, DOCUSIGN_USER_ID, and DOCUSIGN_PRIVATE_KEY.'
     )
   }
 
-  return { integrationKey, secretKey, accountId, userId, privateKey, baseUrl }
+  return { integrationKey, accountId, userId, privateKey, basePath, authServer }
 }
 
 let cachedToken: { token: string; expiresAt: number } | null = null
@@ -44,7 +45,7 @@ async function getAccessToken(): Promise<string> {
   const payload = Buffer.from(JSON.stringify({
     iss: config.integrationKey,
     sub: config.userId,
-    aud: config.baseUrl.includes('demo') ? 'account-d.docusign.com' : 'account.docusign.com',
+    aud: config.authServer,
     iat: now,
     exp: now + 3600,
     scope: 'signature impersonation',
@@ -58,11 +59,7 @@ async function getAccessToken(): Promise<string> {
   const signature = sign.sign(privateKeyFormatted, 'base64url')
   const jwt = `${header}.${payload}.${signature}`
 
-  const authHost = config.baseUrl.includes('demo')
-    ? 'https://account-d.docusign.com'
-    : 'https://account.docusign.com'
-
-  const tokenResponse = await fetch(`${authHost}/oauth/token`, {
+  const tokenResponse = await fetch(`https://${config.authServer}/oauth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -92,12 +89,14 @@ export interface BillOfSaleData {
   sellerLicenceNumber: string
   buyerName: string
   buyerAddress: string
+  buyerAbn?: string
   vehicleMake: string
   vehicleModel: string
   vehicleYear: number
   vehicleVin: string
   vehicleRego: string
   vehicleOdometer: number
+  vehicleColour?: string
   purchasePrice: number
   sellerEmail: string
   date: string
@@ -165,7 +164,7 @@ export async function createAndSendEnvelope(data: BillOfSaleData): Promise<strin
   }
 
   const response = await fetch(
-    `${config.baseUrl}/v2.1/accounts/${config.accountId}/envelopes`,
+    `${config.basePath}/v2.1/accounts/${config.accountId}/envelopes`,
     {
       method: 'POST',
       headers: {
@@ -191,7 +190,7 @@ export async function downloadSignedDocument(envelopeId: string): Promise<Buffer
   const token = await getAccessToken()
 
   const response = await fetch(
-    `${config.baseUrl}/v2.1/accounts/${config.accountId}/envelopes/${envelopeId}/documents/combined`,
+    `${config.basePath}/v2.1/accounts/${config.accountId}/envelopes/${envelopeId}/documents/combined`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -214,6 +213,14 @@ function generateBillOfSaleHtml(data: BillOfSaleData): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
+
+  const abnLine = data.buyerAbn
+    ? `<tr><td>ABN</td><td>${data.buyerAbn}</td></tr>`
+    : ''
+
+  const colourLine = data.vehicleColour
+    ? `<tr><td>Colour</td><td>${data.vehicleColour}</td></tr>`
+    : ''
 
   return `<!DOCTYPE html>
 <html>
@@ -245,6 +252,7 @@ function generateBillOfSaleHtml(data: BillOfSaleData): string {
     <table>
       <tr><td>Name</td><td>${data.buyerName}</td></tr>
       <tr><td>Address</td><td>${data.buyerAddress}</td></tr>
+      ${abnLine}
     </table>
   </div>
 
@@ -257,13 +265,14 @@ function generateBillOfSaleHtml(data: BillOfSaleData): string {
       <tr><td>VIN</td><td>${data.vehicleVin}</td></tr>
       <tr><td>Registration</td><td>${data.vehicleRego}</td></tr>
       <tr><td>Odometer</td><td>${data.vehicleOdometer.toLocaleString()} km</td></tr>
+      ${colourLine}
     </table>
   </div>
 
   <div class="section">
     <h2>Sale Details</h2>
     <table>
-      <tr><td>Purchase Price</td><td>AUD $${formattedPrice}</td></tr>
+      <tr><td>Purchase Price</td><td>AUD $${formattedPrice} (GST inclusive)</td></tr>
       <tr><td>Date</td><td>${data.date}</td></tr>
     </table>
   </div>

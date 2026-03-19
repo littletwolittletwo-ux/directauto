@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { query, state, type } = body
+    const { query, state, type, odometer } = body
 
     if (!query) {
       return NextResponse.json({ error: 'Query (VIN or Rego) is required' }, { status: 400 })
@@ -28,11 +28,12 @@ export async function POST(request: NextRequest) {
       vehicle = await lookupByRego(query.toUpperCase(), state)
     }
 
-    // Get valuation
+    // Get valuation — use provided odometer if available, else Autograb's value
+    const kms = odometer ? Number(odometer) : (vehicle.odometer || 0)
     let valuation = { trade_value: 0, retail_value: 0 }
     if (vehicle.vehicle_id) {
       try {
-        valuation = await getValuation(vehicle.vehicle_id, vehicle.odometer || 0)
+        valuation = await getValuation(vehicle.vehicle_id, kms)
       } catch (err) {
         console.error('[AUTOGRAB] Valuation failed (non-fatal):', err)
       }

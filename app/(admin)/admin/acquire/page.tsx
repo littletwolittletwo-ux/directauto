@@ -67,6 +67,7 @@ export default function AcquireVehiclePage() {
   // Lookup state
   const [query, setQuery] = useState("")
   const [state, setState] = useState("VIC")
+  const [lookupOdometer, setLookupOdometer] = useState("")
   const [searching, setSearching] = useState(false)
   const [lookupResult, setLookupResult] = useState<LookupResult | null>(null)
 
@@ -94,6 +95,7 @@ export default function AcquireVehiclePage() {
     sellerName: "",
     sellerPhone: "",
     sellerEmail: "",
+    sellerAddress: "",
     notes: "",
     autograbVehicleId: "",
   })
@@ -124,6 +126,7 @@ export default function AcquireVehiclePage() {
           query: query.trim(),
           state,
           type: isVin ? "vin" : "rego",
+          odometer: lookupOdometer ? parseInt(lookupOdometer, 10) : undefined,
         }),
       })
 
@@ -147,7 +150,7 @@ export default function AcquireVehiclePage() {
         engine: data.vehicle.engine || prev.engine,
         transmission: data.vehicle.transmission || prev.transmission,
         bodyType: data.vehicle.body_type || prev.bodyType,
-        odometer: data.vehicle.odometer ? String(data.vehicle.odometer) : prev.odometer,
+        odometer: lookupOdometer || (data.vehicle.odometer ? String(data.vehicle.odometer) : prev.odometer),
         tradeValue: data.valuation.trade_value ? String(data.valuation.trade_value) : prev.tradeValue,
         retailValue: data.valuation.retail_value ? String(data.valuation.retail_value) : prev.retailValue,
         autograbVehicleId: data.vehicle.vehicle_id || prev.autograbVehicleId,
@@ -155,9 +158,9 @@ export default function AcquireVehiclePage() {
 
       toast.success("Vehicle found")
 
-      // Auto-run PPSR if VIN available
+      // Auto-run PPSR via Car Analysis if VIN available
       if (data.vehicle.vin) {
-        runPPSR(data.vehicle.vin)
+        runPPSR(data.vehicle.vin, data.vehicle.registration_number)
       }
     } catch (err: any) {
       toast.error(err.message || "Vehicle lookup failed")
@@ -166,10 +169,10 @@ export default function AcquireVehiclePage() {
     }
   }
 
-  async function runPPSR(vin?: string) {
+  async function runPPSR(vin?: string, rego?: string) {
     const vinToCheck = vin || form.vin
-    if (!vinToCheck || vinToCheck.length !== 17) {
-      toast.error("Valid 17-character VIN required for PPSR check")
+    if (!vinToCheck && !rego) {
+      toast.error("VIN or rego required for PPSR check")
       return
     }
 
@@ -177,12 +180,16 @@ export default function AcquireVehiclePage() {
     setPpsrError(null)
 
     try {
-      // We'll create a temporary vehicle or call PPSR directly
-      // For the acquire flow, we call PPSR via a direct endpoint
+      // Call Autograb Car Analysis (with PPSR Cloud fallback)
       const res = await fetch("/api/autograb/ppsr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vin: vinToCheck }),
+        body: JSON.stringify({
+          vin: vinToCheck || undefined,
+          rego: rego || form.registrationNumber || undefined,
+          state,
+          odometer: lookupOdometer || form.odometer || undefined,
+        }),
       })
 
       if (!res.ok) {
@@ -239,6 +246,11 @@ export default function AcquireVehiclePage() {
           autograbVehicleId: form.autograbVehicleId || null,
           autograbTradeValue: form.tradeValue || null,
           autograbRetailValue: form.retailValue || null,
+          autograbColour: form.colour || null,
+          autograbEngine: form.engine || null,
+          autograbTransmission: form.transmission || null,
+          autograbBodyType: form.bodyType || null,
+          offerPrice: form.offerPrice || null,
           purchasePrice: form.offerPrice || null,
         }),
       })
@@ -317,6 +329,14 @@ export default function AcquireVehiclePage() {
                 ))}
               </SelectContent>
             </Select>
+            <Input
+              type="number"
+              placeholder="Odometer (km)"
+              value={lookupOdometer}
+              onChange={(e) => setLookupOdometer(e.target.value)}
+              className="w-[140px]"
+              min={0}
+            />
             <Button onClick={handleLookup} disabled={searching}>
               {searching ? (
                 <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
@@ -599,6 +619,15 @@ export default function AcquireVehiclePage() {
                   placeholder="john@example.com"
                 />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Address</Label>
+              <Input
+                value={form.sellerAddress}
+                onChange={(e) => handleChange("sellerAddress", e.target.value)}
+                placeholder="123 Main St, Suburb VIC 3000"
+              />
             </div>
 
             <div className="space-y-1.5">

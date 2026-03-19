@@ -54,6 +54,10 @@ model Vehicle {
   autograbVehicleId    String?
   autograbTradeValue   Float?
   autograbRetailValue  Float?
+  autograbColour       String?
+  autograbEngine       String?
+  autograbTransmission String?
+  autograbBodyType     String?
   inspectionCondition  String?
   inspectionRepairCost Float?
   inspectionNotes      String?
@@ -62,6 +66,7 @@ model Vehicle {
   docusignStatus       String        @default("NOT_SENT")
   docusignSignedAt     DateTime?
   purchasePrice        Float?
+  offerPrice           Float?
   accountsApprovedAt   DateTime?
   accountsApprovedById String?
   easycarsSyncedAt     DateTime?
@@ -170,6 +175,7 @@ model Settings {
   contactEmail   String?
   notifyOnSubmit Boolean @default(true)
   notifyOnPPSR   Boolean @default(true)
+  abn            String?
 }
 
 model SaleAgreement {
