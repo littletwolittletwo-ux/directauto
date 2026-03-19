@@ -59,6 +59,7 @@ interface PPSRResult {
   isStolen: boolean
   hasFinance: boolean
   encumbered: boolean
+  pdfUrl?: string
   rawResult?: Record<string, unknown>
 }
 
@@ -276,6 +277,7 @@ export default function AcquireVehiclePage() {
             isStolen: ppsrResult.isStolen,
             hasFinance: ppsrResult.hasFinance,
             rawResult: ppsrResult.rawResult || null,
+            pdfUrl: ppsrResult.pdfUrl || null,
             status: "COMPLETED",
           }),
         })

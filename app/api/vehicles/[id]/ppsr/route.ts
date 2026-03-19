@@ -88,28 +88,52 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       },
     })
 
-    // Generate and save PPSR certificate PDF
+    // Save PPSR certificate PDF — try Autograb certificate URL first, then generate our own
     let certificateDocId: string | null = null
     try {
-      const now = new Date()
-      const refNumber = `PPSR-${vehicle.vin.slice(-6)}-${now.getTime().toString(36).toUpperCase()}`
-      const pdfBuffer = await generatePPSRCertificatePDF({
-        vin: vehicle.vin,
-        make: vehicle.make,
-        model: vehicle.model,
-        year: vehicle.year,
-        registrationNumber: vehicle.registrationNumber,
-        searchDate: now.toLocaleDateString('en-AU'),
-        searchTime: now.toLocaleTimeString('en-AU'),
-        referenceNumber: refNumber,
-        isWrittenOff,
-        isStolen,
-        hasFinance,
-      })
+      let pdfBuffer: Buffer | null = null
+      let fileName = `PPSR-Certificate-${vehicle.vin}.pdf`
 
-      const fileName = `PPSR-Certificate-${vehicle.vin}.pdf`
+      // 1. Try downloading Autograb certificate if URL provided
+      const certUrl = body.pdfUrl || (typeof rawResult === 'object' && rawResult !== null && !Array.isArray(rawResult) ? (rawResult as Record<string, unknown>).pdf_url ?? (rawResult as Record<string, unknown>).url ?? (rawResult as Record<string, unknown>).certificate_url ?? (rawResult as Record<string, unknown>).document_url : null)
+      if (certUrl && typeof certUrl === 'string' && certUrl.startsWith('http')) {
+        console.log('[PPSR] Downloading Autograb certificate from:', certUrl)
+        try {
+          const certRes = await fetch(certUrl)
+          if (certRes.ok) {
+            const arrayBuf = await certRes.arrayBuffer()
+            pdfBuffer = Buffer.from(arrayBuf)
+            fileName = `PPSR-Autograb-Certificate-${vehicle.vin}.pdf`
+            console.log('[PPSR] Downloaded Autograb certificate:', pdfBuffer.length, 'bytes')
+          } else {
+            console.error('[PPSR] Autograb certificate download failed:', certRes.status)
+          }
+        } catch (dlErr) {
+          console.error('[PPSR] Autograb certificate download error:', dlErr instanceof Error ? dlErr.message : dlErr)
+        }
+      }
+
+      // 2. Fall back to generating our own certificate PDF
+      if (!pdfBuffer) {
+        console.log('[PPSR] Generating certificate PDF locally')
+        const now = new Date()
+        const refNumber = `PPSR-${vehicle.vin.slice(-6)}-${now.getTime().toString(36).toUpperCase()}`
+        pdfBuffer = await generatePPSRCertificatePDF({
+          vin: vehicle.vin,
+          make: vehicle.make,
+          model: vehicle.model,
+          year: vehicle.year,
+          registrationNumber: vehicle.registrationNumber,
+          searchDate: now.toLocaleDateString('en-AU'),
+          searchTime: now.toLocaleTimeString('en-AU'),
+          referenceNumber: refNumber,
+          isWrittenOff,
+          isStolen,
+          hasFinance,
+        })
+      }
+
       let storagePath: string
-
       if (useBlobStorage()) {
         const result = await saveToBlobStorage(pdfBuffer, id, 'PPSR_CERT', fileName, 'application/pdf')
         storagePath = result.storagePath
@@ -129,7 +153,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         },
       })
       certificateDocId = doc.id
-      console.log('[PPSR] Certificate PDF saved:', doc.id)
+      console.log('[PPSR] Certificate PDF saved:', doc.id, '| source:', certUrl ? 'autograb' : 'generated')
 
       // Link certificate to PPSRCheck
       await prisma.pPSRCheck.update({
@@ -137,7 +161,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         data: { certificateDocId: doc.id },
       })
     } catch (certErr) {
-      console.error('[PPSR] Certificate generation failed (non-fatal):', certErr instanceof Error ? certErr.message : certErr)
+      console.error('[PPSR] Certificate save failed (non-fatal):', certErr instanceof Error ? certErr.message : certErr)
     }
 
     // Recalculate risk

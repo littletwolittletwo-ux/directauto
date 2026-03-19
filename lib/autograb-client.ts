@@ -325,7 +325,7 @@ export async function createCarAnalysis(params: {
 }): Promise<string> {
   const apiKey = getApiKey()
   const base = getBaseUrl()
-  const url = `${base}/v2/reports/car-analysis`
+  const url = `${base}/v2/car-analysis`
 
   const body: Record<string, unknown> = {
     sources: ['ppsr'],
@@ -361,7 +361,7 @@ export async function createCarAnalysis(params: {
 export async function getCarAnalysisResult(reportId: string): Promise<CarAnalysisResult> {
   const apiKey = getApiKey()
   const base = getBaseUrl()
-  const url = `${base}/v2/reports/car-analysis/${encodeURIComponent(reportId)}`
+  const url = `${base}/v2/car-analysis/${encodeURIComponent(reportId)}`
 
   console.log('[AUTOGRAB] Fetching car analysis result:', reportId)
 
@@ -375,20 +375,46 @@ export async function getCarAnalysisResult(reportId: string): Promise<CarAnalysi
   }
 
   const data = await response.json()
-  console.log('[AUTOGRAB] Car analysis result:', JSON.stringify(data).slice(0, 1000))
+  // Log full response (up to 3000 chars to capture certificate/PDF fields)
+  console.log('[AUTOGRAB] Car analysis FULL result:', JSON.stringify(data).slice(0, 3000))
+  console.log('[AUTOGRAB] Car analysis top-level keys:', Object.keys(data))
 
-  // Extract PPSR flags from the report data
-  // The certificate/ppsr section contains the security flags
-  const cert = (data.certificate ?? data.ppsr ?? data) as Record<string, unknown>
+  // Log any certificate/report/PDF related fields
+  const certKeys = ['certificate', 'report', 'pdf', 'pdf_url', 'url', 'document', 'document_url', 'report_url', 'certificate_url', 'ppsr', 'ppsr_certificate', 'ppsr_report']
+  const foundCertFields: Record<string, unknown> = {}
+  for (const key of certKeys) {
+    if (data[key] !== undefined) foundCertFields[key] = data[key]
+  }
+  console.log('[AUTOGRAB] Certificate/PDF fields found:', JSON.stringify(foundCertFields))
+
+  // Extract PPSR flags — try multiple locations in the response
+  const cert = (data.certificate ?? data.ppsr ?? data.ppsr_certificate ?? data.report ?? data) as Record<string, unknown>
+  console.log('[AUTOGRAB] PPSR cert section keys:', Object.keys(cert))
+
+  // Also check nested data.data or data.results
+  const nested = (data.data && typeof data.data === 'object' ? data.data : cert) as Record<string, unknown>
+
   const isStolen = Boolean(
-    cert.has_stolen_records ?? cert.stolen ?? cert.is_stolen ?? false
+    cert.has_stolen_records ?? cert.stolen ?? cert.is_stolen ??
+    nested.has_stolen_records ?? nested.stolen ?? nested.is_stolen ?? false
   )
   const isWrittenOff = Boolean(
-    cert.has_written_off_records ?? cert.written_off ?? cert.is_written_off ?? false
+    cert.has_written_off_records ?? cert.written_off ?? cert.is_written_off ??
+    nested.has_written_off_records ?? nested.written_off ?? nested.is_written_off ?? false
   )
   const hasFinance = Boolean(
-    cert.has_secured_parties ?? cert.has_finance ?? cert.finance ?? cert.encumbered ?? false
+    cert.has_secured_parties ?? cert.has_finance ?? cert.finance ?? cert.encumbered ??
+    nested.has_secured_parties ?? nested.has_finance ?? nested.finance ?? nested.encumbered ?? false
   )
+
+  // Extract PDF/certificate URL from multiple possible locations
+  const pdfUrl = str(
+    data.pdf_url, data.url, data.document_url, data.report_url, data.certificate_url,
+    cert.pdf_url, cert.url, cert.document_url, cert.report_url,
+    nested.pdf_url, nested.url, nested.document_url, nested.report_url,
+  ) || undefined
+
+  console.log('[AUTOGRAB] Extracted — stolen:', isStolen, 'writtenOff:', isWrittenOff, 'finance:', hasFinance, 'pdfUrl:', pdfUrl)
 
   return {
     id: reportId,
@@ -397,7 +423,7 @@ export async function getCarAnalysisResult(reportId: string): Promise<CarAnalysi
     isStolen,
     hasFinance,
     encumbered: hasFinance,
-    pdfUrl: data.url ?? data.pdf_url ?? undefined,
+    pdfUrl,
     rawResult: data,
   }
 }
