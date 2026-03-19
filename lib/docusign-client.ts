@@ -18,8 +18,8 @@ function getConfig(): DocuSignConfig {
   const accountId = process.env.DOCUSIGN_ACCOUNT_ID
   const userId = process.env.DOCUSIGN_USER_ID
   const privateKey = process.env.DOCUSIGN_PRIVATE_KEY
-  const basePath = process.env.DOCUSIGN_BASE_PATH || 'https://au.docusign.net/restapi'
-  const authServer = process.env.DOCUSIGN_AUTH_SERVER || 'account.docusign.com'
+  const basePath = process.env.DOCUSIGN_BASE_PATH || 'https://demo.docusign.net/restapi'
+  const authServer = process.env.DOCUSIGN_AUTH_SERVER || 'account-d.docusign.com'
 
   if (!integrationKey || !accountId || !userId || !privateKey) {
     throw new Error(
