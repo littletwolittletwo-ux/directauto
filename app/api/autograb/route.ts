@@ -39,7 +39,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('[AUTOGRAB] Returning to frontend — vehicle:', JSON.stringify(vehicle), 'valuation:', JSON.stringify(valuation))
+    console.log('[AUTOGRAB] Final vehicle to frontend:', JSON.stringify(vehicle))
+    console.log('[AUTOGRAB] Final valuation to frontend:', JSON.stringify(valuation))
+    console.log('[AUTOGRAB] Key fields — vin:', vehicle.vin, '| colour:', vehicle.colour, '| trade:', valuation.trade_value, '| retail:', valuation.retail_value)
 
     return NextResponse.json({
       vehicle,

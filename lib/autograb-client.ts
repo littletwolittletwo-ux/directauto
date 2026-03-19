@@ -115,13 +115,30 @@ export async function getValuation(vehicleId: string, kms: number): Promise<Auto
   const data = await response.json()
   console.log('[AUTOGRAB] Valuation raw response:', JSON.stringify(data))
 
-  // Unwrap nested valuation response
-  const v = (data.data && typeof data.data === 'object' ? data.data : data) as Record<string, unknown>
-  console.log('[AUTOGRAB] Valuation keys:', Object.keys(v))
+  // Unwrap nested valuation response — try multiple nesting patterns
+  let v = data as Record<string, unknown>
+  for (const key of ['data', 'result', 'valuation', 'prediction', 'predictions', 'values', 'pricing']) {
+    const nested = v[key]
+    if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+      v = nested as Record<string, unknown>
+      break
+    }
+  }
+  console.log('[AUTOGRAB] Valuation unwrapped keys:', Object.keys(v))
+  console.log('[AUTOGRAB] Valuation trade candidates:', JSON.stringify({
+    trade_value: v.trade_value, trade: v.trade, wholesale: v.wholesale,
+    trade_low: v.trade_low, trade_avg: v.trade_avg, predicted_trade: v.predicted_trade,
+    wholesale_value: v.wholesale_value, trade_price: v.trade_price,
+  }))
+  console.log('[AUTOGRAB] Valuation retail candidates:', JSON.stringify({
+    retail_value: v.retail_value, retail: v.retail, dealer_retail: v.dealer_retail,
+    retail_low: v.retail_low, retail_avg: v.retail_avg, predicted_retail: v.predicted_retail,
+    retail_price: v.retail_price, private_value: v.private_value,
+  }))
 
   return {
-    trade_value: num(v.trade_value, v.trade, v.tradeValue, v.wholesale, v.wholesale_value, v.trade_low, v.trade_avg),
-    retail_value: num(v.retail_value, v.retail, v.retailValue, v.retail_low, v.retail_avg, v.dealer_retail),
+    trade_value: num(v.trade_value, v.trade, v.tradeValue, v.wholesale, v.wholesale_value, v.wholesaleValue, v.trade_low, v.trade_avg, v.predicted_trade, v.predictedTrade, v.trade_price, v.tradePrice),
+    retail_value: num(v.retail_value, v.retail, v.retailValue, v.retail_low, v.retail_avg, v.dealer_retail, v.dealerRetail, v.predicted_retail, v.predictedRetail, v.retail_price, v.retailPrice, v.private_value, v.privateValue),
   }
 }
 
@@ -130,19 +147,22 @@ function mapVehicleResponse(raw: Record<string, unknown>): AutograbVehicle {
   const d = unwrapResponse(raw)
 
   console.log('[AUTOGRAB] Unwrapped vehicle data keys:', Object.keys(d))
+  // Log values for critical fields to debug mapping
+  console.log('[AUTOGRAB] VIN candidates:', JSON.stringify({ vin: d.vin, vins: d.vins, VIN: d.VIN, chassis_number: d.chassis_number, chassis: d.chassis }))
+  console.log('[AUTOGRAB] Colour candidates:', JSON.stringify({ colour: d.colour, color: d.color, exterior_colour: d.exterior_colour, exterior_color: d.exterior_color, primary_colour: d.primary_colour }))
 
   const result = {
-    vehicle_id: str(d.vehicle_id, d.vehicleId, d.id, d.autograb_id),
-    make: str(d.make, d.Make),
-    model: str(d.model, d.Model, d.family, d.Family),
-    year: num(d.year, d.Year, d.year_of_manufacture, d.yearOfManufacture, d.build_year, d.buildYear),
-    vin: str(d.vin, d.Vin, d.VIN, d.chassis_number, d.chassisNumber, d.chassis),
-    registration_number: str(d.registration_number, d.registrationNumber, d.plate, d.Plate, d.rego, d.Rego, d.registration, d.plate_number, d.plateNumber),
-    colour: str(d.colour, d.color, d.Colour, d.Color, d.exterior_colour, d.exteriorColour),
-    engine: str(d.engine, d.Engine, d.engine_description, d.engineDescription, d.engine_type),
-    transmission: str(d.transmission, d.Transmission, d.transmission_type, d.transmissionType, d.gearbox),
-    body_type: str(d.body_type, d.bodyType, d.body_style, d.bodyStyle, d.BodyType, d.body, d.Body),
-    odometer: num(d.odometer, d.Odometer, d.kms, d.km, d.mileage),
+    vehicle_id: str(d.vehicle_id, d.vehicleId, d.id, d.autograb_id, d.autograbId),
+    make: strObj(d.make, d.Make, d.manufacturer, d.Manufacturer),
+    model: strObj(d.model, d.Model, d.family, d.Family, d.variant, d.Variant),
+    year: num(d.year, d.Year, d.year_of_manufacture, d.yearOfManufacture, d.build_year, d.buildYear, d.manufacture_year),
+    vin: strArr(d.vin, d.vins, d.Vin, d.VIN, d.chassis_number, d.chassisNumber, d.chassis, d.Chassis, d.vin_number, d.vinNumber),
+    registration_number: strObj(d.registration_number, d.registrationNumber, d.plate, d.Plate, d.rego, d.Rego, d.registration, d.plate_number, d.plateNumber, d.plates, d.number_plate),
+    colour: strObj(d.colour, d.color, d.Colour, d.Color, d.exterior_colour, d.exteriorColour, d.exterior_color, d.exteriorColor, d.primary_colour, d.primaryColour, d.primary_color),
+    engine: strObj(d.engine, d.Engine, d.engine_description, d.engineDescription, d.engine_type, d.engineType),
+    transmission: strObj(d.transmission, d.Transmission, d.transmission_type, d.transmissionType, d.gearbox, d.Gearbox, d.gear_type),
+    body_type: strObj(d.body_type, d.bodyType, d.body_style, d.bodyStyle, d.BodyType, d.body, d.Body, d.body_configuration),
+    odometer: num(d.odometer, d.Odometer, d.kms, d.km, d.mileage, d.Mileage, d.kilometres),
   }
 
   console.log('[AUTOGRAB] Mapped vehicle:', JSON.stringify(result))
@@ -191,9 +211,82 @@ function str(...candidates: unknown[]): string {
   return ''
 }
 
+/**
+ * Like str() but also handles arrays (take first element) and
+ * objects with name/primary/value/number keys.
+ */
+function strArr(...candidates: unknown[]): string {
+  for (const c of candidates) {
+    if (c === undefined || c === null || c === '') continue
+    if (Array.isArray(c)) {
+      if (c.length > 0 && c[0] !== null && c[0] !== undefined && c[0] !== '') {
+        return String(c[0])
+      }
+      continue
+    }
+    if (typeof c === 'object') {
+      const obj = c as Record<string, unknown>
+      // Try common object shapes: {number: "X"}, {value: "X"}, {name: "X"}
+      const val = obj.value ?? obj.name ?? obj.number ?? obj.primary ?? Object.values(obj)[0]
+      if (val !== undefined && val !== null && val !== '') return String(val)
+      continue
+    }
+    return String(c)
+  }
+  return ''
+}
+
+/**
+ * Like str() but also handles objects with name/value/primary keys
+ * (e.g. make: { name: "Toyota" } or colour: { primary: "White" }).
+ */
+function strObj(...candidates: unknown[]): string {
+  for (const c of candidates) {
+    if (c === undefined || c === null || c === '') continue
+    if (Array.isArray(c)) {
+      if (c.length > 0 && c[0] !== null && c[0] !== undefined && c[0] !== '') {
+        const item = c[0]
+        if (typeof item === 'object' && item !== null) {
+          const obj = item as Record<string, unknown>
+          const val = obj.name ?? obj.value ?? obj.number ?? obj.primary ?? Object.values(obj)[0]
+          if (val !== undefined && val !== null && val !== '') return String(val)
+        } else {
+          return String(item)
+        }
+      }
+      continue
+    }
+    if (typeof c === 'object') {
+      const obj = c as Record<string, unknown>
+      const val = obj.name ?? obj.value ?? obj.number ?? obj.primary ?? obj.description ?? undefined
+      if (val !== undefined && val !== null && val !== '') return String(val)
+      // Don't return "[object Object]" — skip
+      continue
+    }
+    return String(c)
+  }
+  return ''
+}
+
 function num(...candidates: unknown[]): number {
   for (const c of candidates) {
     if (c !== undefined && c !== null) {
+      if (Array.isArray(c)) {
+        if (c.length > 0) {
+          const n = Number(c[0])
+          if (!isNaN(n) && n > 0) return n
+        }
+        continue
+      }
+      if (typeof c === 'object') {
+        const obj = c as Record<string, unknown>
+        const val = obj.value ?? obj.amount ?? obj.price ?? Object.values(obj)[0]
+        if (val !== undefined && val !== null) {
+          const n = Number(val)
+          if (!isNaN(n) && n > 0) return n
+        }
+        continue
+      }
       const n = Number(c)
       if (!isNaN(n) && n > 0) return n
     }
