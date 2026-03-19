@@ -144,6 +144,7 @@ export interface BillOfSaleData {
   vehicleRego: string
   vehicleOdometer: number
   vehicleColour?: string
+  vehicleTransmission?: string
   purchasePrice: number
   sellerEmail: string
   date: string
@@ -260,84 +261,119 @@ function generateBillOfSaleHtml(data: BillOfSaleData): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
-
-  const abnLine = data.buyerAbn
-    ? `<tr><td>ABN</td><td>${data.buyerAbn}</td></tr>`
-    : ''
-
-  const colourLine = data.vehicleColour
-    ? `<tr><td>Colour</td><td>${data.vehicleColour}</td></tr>`
-    : ''
+  const blank = '___________'
 
   return `<!DOCTYPE html>
 <html>
 <head><style>
-  body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; }
-  h1 { text-align: center; color: #1e40af; margin-bottom: 30px; }
-  table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-  td { padding: 8px 12px; border: 1px solid #e2e8f0; }
-  td:first-child { background: #f8fafc; font-weight: 600; width: 200px; }
-  .section { margin-top: 30px; }
-  .section h2 { color: #1e40af; font-size: 16px; border-bottom: 2px solid #1e40af; padding-bottom: 5px; }
-  .signature-area { margin-top: 50px; }
-  .sig-line { border-bottom: 1px solid #333; width: 300px; margin-top: 40px; }
+  body { font-family: Arial, sans-serif; margin: 0; padding: 40px 50px; color: #000; font-size: 11pt; line-height: 1.5; }
+  h1 { text-align: center; font-size: 18pt; margin-bottom: 5px; }
+  .subtitle { text-align: center; font-size: 11pt; margin-bottom: 30px; }
+  .party { margin-bottom: 20px; }
+  .party-label { font-weight: bold; font-size: 12pt; margin-bottom: 5px; }
+  .field { margin: 3px 0; }
+  .field-label { display: inline-block; width: 200px; }
+  .docs { margin: 20px 0; }
+  .docs ul { margin: 5px 0; padding-left: 20px; }
+  .terms { margin-top: 25px; }
+  .terms h3 { font-size: 12pt; margin-bottom: 10px; }
+  .terms ol { padding-left: 20px; }
+  .terms li { margin-bottom: 10px; }
+  .vehicle-table { width: 100%; border-collapse: collapse; margin: 10px 0 20px 0; }
+  .vehicle-table td { padding: 4px 10px; border: 1px solid #999; font-size: 10pt; }
+  .vehicle-table td:first-child { font-weight: bold; width: 200px; background: #f5f5f5; }
+  .signatures { margin-top: 30px; page-break-inside: avoid; }
+  .sig-row { margin: 12px 0; }
+  .sig-label { display: inline-block; width: 260px; }
+  .sig-line { display: inline-block; width: 280px; border-bottom: 1px solid #000; }
 </style></head>
 <body>
-  <h1>BILL OF SALE — MOTOR VEHICLE</h1>
 
-  <div class="section">
-    <h2>Seller Details</h2>
-    <table>
-      <tr><td>Name</td><td>${data.sellerName}</td></tr>
-      <tr><td>Address</td><td>${data.sellerAddress}</td></tr>
-      <tr><td>Licence Number</td><td>${data.sellerLicenceNumber}</td></tr>
-    </table>
-  </div>
+<h1>BILL OF SALE</h1>
+<p class="subtitle">This Bill of Sale Agreement is made between:</p>
 
-  <div class="section">
-    <h2>Buyer Details</h2>
-    <table>
-      <tr><td>Name</td><td>${data.buyerName}</td></tr>
-      <tr><td>Address</td><td>${data.buyerAddress}</td></tr>
-      ${abnLine}
-    </table>
-  </div>
+<div class="party">
+  <p class="party-label">Seller:</p>
+  <div class="field"><span class="field-label">Name:</span> ${data.sellerName}</div>
+  <div class="field"><span class="field-label">Address:</span> ${data.sellerAddress || blank}</div>
+  <div class="field"><span class="field-label">Customer ID (NT):</span> ${blank}</div>
+  <div class="field"><span class="field-label">Date of Birth:</span> ${blank}</div>
+</div>
 
-  <div class="section">
-    <h2>Vehicle Details</h2>
-    <table>
-      <tr><td>Make</td><td>${data.vehicleMake}</td></tr>
-      <tr><td>Model</td><td>${data.vehicleModel}</td></tr>
-      <tr><td>Year</td><td>${data.vehicleYear}</td></tr>
-      <tr><td>VIN</td><td>${data.vehicleVin}</td></tr>
-      <tr><td>Registration</td><td>${data.vehicleRego}</td></tr>
-      <tr><td>Odometer</td><td>${data.vehicleOdometer.toLocaleString()} km</td></tr>
-      ${colourLine}
-    </table>
-  </div>
+<div class="party">
+  <p class="party-label">Buyer:</p>
+  <div class="field"><span class="field-label">Name:</span> ${data.buyerName}</div>
+  <div class="field"><span class="field-label">Address:</span> ${data.buyerAddress}</div>
+</div>
 
-  <div class="section">
-    <h2>Sale Details</h2>
-    <table>
-      <tr><td>Purchase Price</td><td>AUD $${formattedPrice} (GST inclusive)</td></tr>
-      <tr><td>Date</td><td>${data.date}</td></tr>
-    </table>
-  </div>
+<div class="docs">
+  <p><strong>Documents required:</strong></p>
+  <ul>
+    <li>Photo of drivers license</li>
+    <li>Photo of registration papers</li>
+    <li>Photo of VIN</li>
+    <li>Top of bank statement</li>
+  </ul>
+</div>
 
-  <p style="margin-top: 30px;">
-    The Seller hereby sells and transfers the above-described motor vehicle to the Buyer
-    for the consideration stated above. The Seller warrants that they are the lawful owner
-    of said vehicle and have the right to sell it. The vehicle is sold in its current condition.
-  </p>
+<div class="terms">
+  <h3>TERMS OF BILL OF SALE:</h3>
+  <ol>
+    <li>Seller hereby sells, and Buyer hereby buys, the following vehicle for <strong>AUD $${formattedPrice}</strong></li>
+  </ol>
 
-  <div class="signature-area">
-    <p><strong>Seller Signature:</strong></p>
-    <p style="margin-top: 10px; font-size: 8px; color: #ffffff;">/sig1/</p>
-    <div style="border-bottom: 1px solid #333; width: 300px; height: 40px; margin-top: 5px;"></div>
-    <p style="margin-top: 20px;"><strong>Date:</strong></p>
-    <p style="margin-top: 10px; font-size: 8px; color: #ffffff;">/date1/</p>
-    <div style="border-bottom: 1px solid #333; width: 200px; margin-top: 5px;"></div>
-  </div>
+  <table class="vehicle-table">
+    <tr><td>Vehicle Registration Number</td><td>${data.vehicleRego}</td></tr>
+    <tr><td>VIN</td><td>${data.vehicleVin}</td></tr>
+    <tr><td>Engine No</td><td>${blank}</td></tr>
+    <tr><td>Year</td><td>${data.vehicleYear}</td></tr>
+    <tr><td>Make</td><td>${data.vehicleMake}</td></tr>
+    <tr><td>Model</td><td>${data.vehicleModel}</td></tr>
+    <tr><td>Model Year</td><td>${data.vehicleYear}</td></tr>
+    <tr><td>Body Shape</td><td>${blank}</td></tr>
+    <tr><td>Colour</td><td>${data.vehicleColour || blank}</td></tr>
+    <tr><td>Transmission</td><td>${data.vehicleTransmission || blank}</td></tr>
+    <tr><td>Fuel</td><td>${blank}</td></tr>
+    <tr><td>Odometer</td><td>${data.vehicleOdometer.toLocaleString()} km</td></tr>
+    <tr><td>Cyl/Rotors</td><td>${blank}</td></tr>
+    <tr><td>Seats</td><td>${blank}</td></tr>
+    <tr><td>Number of Doors</td><td>${blank}</td></tr>
+  </table>
+
+  <ol start="2">
+    <li>The full description and picture of the vehicle as represented by Seller is set out in the Schedule.</li>
+    <li>Seller hereby represents and thereby warrants to Buyer:
+      <br>(a) there are no legal restrictions preventing Seller from entering into this Bill of Sale Agreement;
+      <br>(b) Seller is the sole legal and beneficial owner of the vehicle;
+      <br>(c) the vehicle is free of any encumbrances or adverse claims or interests whatsoever;
+      <br>(d) Seller will provide to Buyer any and all duly executed documents or forms as are required in order to transfer title in the vehicle free of any encumbrances or adverse claims or interests whatsoever.
+    </li>
+    <li>Seller hereby covenant to indemnify Buyer against any and all claims and demands, including any expenses and costs incurred by Buyer, by any other party in relation to the ownership of the vehicle.</li>
+    <li>Purchase price is <strong>$${formattedPrice}</strong> All inclusive.</li>
+  </ol>
+</div>
+
+<div class="signatures">
+  <p><strong>Executed by the parties as an agreement on</strong></p>
+
+  <div class="sig-row"><span class="sig-label">Date signed:</span> <span class="sig-line">&nbsp;</span></div>
+
+  <div class="sig-row"><span class="sig-label">Signature of Representative:</span> <span class="sig-line">&nbsp;</span></div>
+  <div class="sig-row"><span class="sig-label">Name of Signatory:</span> <span class="sig-line">&nbsp;</span></div>
+  <div class="sig-row"><span class="sig-label">Position within Company:</span> <span class="sig-line">&nbsp;</span></div>
+
+  <div class="sig-row"><span class="sig-label">In the presence of (Witness):</span> <span class="sig-line">&nbsp;</span></div>
+  <div class="sig-row"><span class="sig-label">Print name:</span> <span class="sig-line">&nbsp;</span></div>
+
+  <div class="sig-row"><span class="sig-label">Signature of Buyer:</span> <span style="font-size: 2px; color: white;">/sig1/</span></div>
+  <div class="sig-row"><span class="sig-label">&nbsp;</span> <span class="sig-line">&nbsp;</span></div>
+
+  <div class="sig-row"><span class="sig-label">In the presence of (Witness):</span> <span class="sig-line">&nbsp;</span></div>
+  <div class="sig-row"><span class="sig-label">Print name:</span> <span class="sig-line">&nbsp;</span></div>
+
+  <p style="font-size: 2px; color: white;">/date1/</p>
+</div>
+
 </body>
 </html>`
 }

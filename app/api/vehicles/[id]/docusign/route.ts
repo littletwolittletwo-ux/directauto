@@ -50,6 +50,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       vehicleRego: vehicle.registrationNumber,
       vehicleOdometer: vehicle.odometer,
       vehicleColour: vehicle.autograbColour || undefined,
+      vehicleTransmission: vehicle.autograbTransmission || undefined,
       purchasePrice: vehicle.purchasePrice,
       sellerEmail: vehicle.sellerEmail,
       date: new Date().toLocaleDateString('en-AU'),
