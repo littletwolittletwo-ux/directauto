@@ -170,24 +170,43 @@ function mapVehicleResponse(raw: Record<string, unknown>): AutograbVehicle {
 }
 
 function unwrapResponse(data: Record<string, unknown>): Record<string, unknown> {
+  console.log('[AUTOGRAB] unwrapResponse top-level keys:', Object.keys(data))
+
+  // If top-level already has vehicle fields, use it directly
+  if (data.make || data.vin || data.vins || data.vehicle_id || data.year || data.VIN || data.Make) {
+    console.log('[AUTOGRAB] unwrapResponse: top-level has vehicle fields, using directly')
+    return data
+  }
+
   // Try common nesting patterns: data.data, data.result, data.results[0], data.vehicle
   for (const key of ['data', 'result', 'vehicle', 'item']) {
     const nested = data[key]
     if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
-      return nested as Record<string, unknown>
+      const obj = nested as Record<string, unknown>
+      console.log('[AUTOGRAB] unwrapResponse: found nested object at "' + key + '", keys:', Object.keys(obj))
+      // Check if this level has vehicle fields, or if we need to go deeper
+      if (obj.make || obj.vin || obj.vins || obj.vehicle_id || obj.year || obj.VIN || obj.Make) {
+        return obj
+      }
+      // Go one level deeper
+      for (const innerKey of ['data', 'result', 'vehicle', 'item']) {
+        const inner = obj[innerKey]
+        if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
+          console.log('[AUTOGRAB] unwrapResponse: going deeper into "' + key + '.' + innerKey + '"')
+          return inner as Record<string, unknown>
+        }
+      }
+      // If no deeper level, use this level anyway
+      return obj
     }
   }
 
   for (const key of ['results', 'data', 'vehicles', 'items']) {
     const nested = data[key]
     if (Array.isArray(nested) && nested.length > 0 && typeof nested[0] === 'object') {
+      console.log('[AUTOGRAB] unwrapResponse: found array at "' + key + '", using first element')
       return nested[0] as Record<string, unknown>
     }
-  }
-
-  // Check if the top-level response itself has vehicle fields
-  if (data.make || data.vin || data.vehicle_id || data.year || data.VIN || data.Make) {
-    return data
   }
 
   // Last resort: if there's a single nested object that looks like vehicle data, use it

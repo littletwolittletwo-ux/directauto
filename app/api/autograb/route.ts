@@ -39,6 +39,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log('[AUTOGRAB] Full vehicle object keys:', JSON.stringify(Object.keys(vehicle)))
+    console.log('[AUTOGRAB] VIN fields:', JSON.stringify({
+      vin: vehicle.vin,
+      vehicle_id: vehicle.vehicle_id,
+    }))
     console.log('[AUTOGRAB] Final vehicle to frontend:', JSON.stringify(vehicle))
     console.log('[AUTOGRAB] Final valuation to frontend:', JSON.stringify(valuation))
     console.log('[AUTOGRAB] Key fields — vin:', vehicle.vin, '| colour:', vehicle.colour, '| trade:', valuation.trade_value, '| retail:', valuation.retail_value)

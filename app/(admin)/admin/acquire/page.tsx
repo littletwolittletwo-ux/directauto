@@ -137,6 +137,8 @@ export default function AcquireVehiclePage() {
       }
 
       const data: LookupResult = await res.json()
+      console.log('[ACQUIRE] Vehicle data received:', JSON.stringify(data.vehicle))
+      console.log('[ACQUIRE] Valuation data received:', JSON.stringify(data.valuation))
       setLookupResult(data)
 
       // Auto-fill form — use query as rego fallback if lookup was by rego
@@ -466,7 +468,6 @@ export default function AcquireVehiclePage() {
                   value={form.vin}
                   onChange={(e) => handleChange("vin", e.target.value.toUpperCase())}
                   placeholder="17-character VIN"
-                  maxLength={17}
                   className="uppercase font-mono"
                 />
               </div>
