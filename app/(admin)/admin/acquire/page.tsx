@@ -59,6 +59,7 @@ interface PPSRResult {
   isStolen: boolean
   hasFinance: boolean
   encumbered: boolean
+  rawResult?: Record<string, unknown>
 }
 
 export default function AcquireVehiclePage() {
@@ -263,7 +264,7 @@ export default function AcquireVehiclePage() {
 
       const vehicle = await res.json()
 
-      // If we have PPSR results, save them
+      // If we have PPSR results, save them (also generates PPSR certificate PDF)
       if (ppsrResult) {
         await fetch(`/api/vehicles/${vehicle.id}/ppsr`, {
           method: "POST",
@@ -272,6 +273,7 @@ export default function AcquireVehiclePage() {
             isWrittenOff: ppsrResult.isWrittenOff,
             isStolen: ppsrResult.isStolen,
             hasFinance: ppsrResult.hasFinance,
+            rawResult: ppsrResult.rawResult || null,
             status: "COMPLETED",
           }),
         })

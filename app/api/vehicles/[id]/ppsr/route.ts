@@ -7,6 +7,8 @@ import { updateVehicleRisk } from '@/lib/risk-engine'
 import { logAudit } from '@/lib/audit'
 import { sendPPSRFlagAlert } from '@/lib/mailer'
 import { searchByVIN } from '@/lib/ppsr-client'
+import { generatePPSRCertificatePDF } from '@/lib/ppsr-certificate-pdf'
+import { saveToBlobStorage, saveFile, useBlobStorage } from '@/lib/storage'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -86,6 +88,58 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       },
     })
 
+    // Generate and save PPSR certificate PDF
+    let certificateDocId: string | null = null
+    try {
+      const now = new Date()
+      const refNumber = `PPSR-${vehicle.vin.slice(-6)}-${now.getTime().toString(36).toUpperCase()}`
+      const pdfBuffer = await generatePPSRCertificatePDF({
+        vin: vehicle.vin,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        registrationNumber: vehicle.registrationNumber,
+        searchDate: now.toLocaleDateString('en-AU'),
+        searchTime: now.toLocaleTimeString('en-AU'),
+        referenceNumber: refNumber,
+        isWrittenOff,
+        isStolen,
+        hasFinance,
+      })
+
+      const fileName = `PPSR-Certificate-${vehicle.vin}.pdf`
+      let storagePath: string
+
+      if (useBlobStorage()) {
+        const result = await saveToBlobStorage(pdfBuffer, id, 'PPSR_CERT', fileName, 'application/pdf')
+        storagePath = result.storagePath
+      } else {
+        const result = saveFile(pdfBuffer, id, 'PPSR_CERT', fileName, 'application/pdf')
+        storagePath = result.storagePath
+      }
+
+      const doc = await prisma.document.create({
+        data: {
+          vehicleId: id,
+          category: 'PPSR_CERT',
+          originalName: fileName,
+          storagePath,
+          mimeType: 'application/pdf',
+          sizeBytes: pdfBuffer.length,
+        },
+      })
+      certificateDocId = doc.id
+      console.log('[PPSR] Certificate PDF saved:', doc.id)
+
+      // Link certificate to PPSRCheck
+      await prisma.pPSRCheck.update({
+        where: { vehicleId: id },
+        data: { certificateDocId: doc.id },
+      })
+    } catch (certErr) {
+      console.error('[PPSR] Certificate generation failed (non-fatal):', certErr instanceof Error ? certErr.message : certErr)
+    }
+
     // Recalculate risk
     const risk = await updateVehicleRisk(id)
 
@@ -131,7 +185,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     })
 
     return NextResponse.json({
-      ppsrCheck,
+      ppsrCheck: { ...ppsrCheck, certificateDocId: certificateDocId || ppsrCheck.certificateDocId },
       risk,
     })
   } catch (error) {
