@@ -120,91 +120,63 @@ export async function POST(request: NextRequest) {
     // Determine submission source
     const submissionSource = tokenId ? 'SINGLE_USE_LINK' : 'PUBLIC_PORTAL'
 
+    // Check if a vehicle with this VIN already exists
+    const existing = await prisma.vehicle.findUnique({
+      where: { vin: vin.toUpperCase() },
+      select: { id: true, confirmationNumber: true },
+    })
+
     let vehicle: { id: string; confirmationNumber: string }
 
-    // If token provided, try to find existing vehicle (created by staff on acquire page)
-    if (tokenId) {
-      const existingVehicle = await prisma.vehicle.findFirst({
-        where: { vin: vin.toUpperCase() },
-        select: { id: true, confirmationNumber: true },
+    if (existing && tokenId) {
+      // Token submission for existing vehicle — UPDATE with seller details
+      console.log('[SUBMIT] Token flow — updating existing vehicle:', existing.id)
+      await prisma.vehicle.update({
+        where: { id: existing.id },
+        data: {
+          sellerName,
+          sellerPhone,
+          sellerEmail,
+          submissionSource,
+          submissionToken: tokenId,
+          ipAddress: ip,
+          sellerSignature: signatureName,
+          signedAt: new Date(),
+          status: 'PENDING_VERIFICATION',
+        },
       })
-
-      if (existingVehicle) {
-        // UPDATE existing vehicle with seller details
-        console.log('[SUBMIT] Token flow — updating existing vehicle:', existingVehicle.id)
-        await prisma.vehicle.update({
-          where: { id: existingVehicle.id },
-          data: {
-            sellerName,
-            sellerPhone,
-            sellerEmail,
-            registrationNumber: registrationNumber || undefined,
-            odometer: parseInt(odometer, 10),
-            submissionSource,
-            submissionToken: tokenId,
-            ipAddress: ip,
-            sellerSignature: signatureName,
-            signedAt: new Date(),
-            status: 'PENDING_VERIFICATION',
-          },
-        })
-        vehicle = existingVehicle
-      } else {
-        // Token provided but vehicle not found — create new
-        console.log('[SUBMIT] Token flow — no existing vehicle for VIN, creating new')
-        const confirmationNumber = await generateConfirmationNumber()
-        const created = await prisma.vehicle.create({
-          data: {
-            confirmationNumber,
-            vin: vin.toUpperCase(),
-            registrationNumber,
-            make,
-            model,
-            year: parseInt(year, 10),
-            odometer: parseInt(odometer, 10),
-            sellerName,
-            sellerPhone,
-            sellerEmail,
-            submissionSource,
-            submissionToken: tokenId,
-            ipAddress: ip,
-            sellerSignature: signatureName,
-            signedAt: new Date(),
-            status: 'PENDING_VERIFICATION',
-          },
-        })
-        vehicle = { id: created.id, confirmationNumber: created.confirmationNumber }
-      }
+      vehicle = existing
+    } else if (existing && !tokenId) {
+      // Duplicate VIN without token — reject
+      return NextResponse.json(
+        { error: 'A vehicle with this VIN has already been submitted.' },
+        { status: 409 }
+      )
     } else {
-      // Regular public form — create new vehicle
+      // No existing vehicle — create new
       const confirmationNumber = await generateConfirmationNumber()
-      console.log('[SUBMIT] Public form — creating new vehicle, VIN:', vin, 'confirmation:', confirmationNumber)
-
-      try {
-        const created = await prisma.vehicle.create({
-          data: {
-            confirmationNumber,
-            vin: vin.toUpperCase(),
-            registrationNumber,
-            make,
-            model,
-            year: parseInt(year, 10),
-            odometer: parseInt(odometer, 10),
-            sellerName,
-            sellerPhone,
-            sellerEmail,
-            submissionSource,
-            ipAddress: ip,
-            sellerSignature: signatureName,
-            signedAt: new Date(),
-            status: 'PENDING_VERIFICATION',
-          },
-        })
-        vehicle = { id: created.id, confirmationNumber: created.confirmationNumber }
-      } catch (createErr) {
-        console.error('[SUBMIT] Vehicle create failed:', createErr instanceof Error ? createErr.message : createErr)
-        throw createErr
-      }
+      console.log('[SUBMIT] Creating new vehicle, VIN:', vin, 'confirmation:', confirmationNumber)
+      const created = await prisma.vehicle.create({
+        data: {
+          confirmationNumber,
+          vin: vin.toUpperCase(),
+          registrationNumber,
+          make,
+          model,
+          year: parseInt(year, 10),
+          odometer: parseInt(odometer, 10),
+          sellerName,
+          sellerPhone,
+          sellerEmail,
+          submissionSource,
+          submissionToken: tokenId || undefined,
+          ipAddress: ip,
+          sellerSignature: signatureName,
+          signedAt: new Date(),
+          status: 'PENDING_VERIFICATION',
+        },
+      })
+      vehicle = { id: created.id, confirmationNumber: created.confirmationNumber }
     }
 
     console.log('[SUBMIT] Vehicle ready:', vehicle.id, vehicle.confirmationNumber)
