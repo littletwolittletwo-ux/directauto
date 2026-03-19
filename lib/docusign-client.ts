@@ -182,7 +182,7 @@ export async function createAndSendEnvelope(data: BillOfSaleData): Promise<strin
                 anchorString: '/sig1/',
                 anchorUnits: 'pixels',
                 anchorXOffset: '0',
-                anchorYOffset: '-10',
+                anchorYOffset: '-5',
               },
             ],
             dateSignedTabs: [
@@ -191,7 +191,70 @@ export async function createAndSendEnvelope(data: BillOfSaleData): Promise<strin
                 anchorString: '/date1/',
                 anchorUnits: 'pixels',
                 anchorXOffset: '0',
-                anchorYOffset: '-10',
+                anchorYOffset: '-5',
+              },
+            ],
+            textTabs: [
+              {
+                tabLabel: 'signatoryName',
+                documentId: '1',
+                anchorString: '/txt_signatory/',
+                anchorUnits: 'pixels',
+                anchorXOffset: '0',
+                anchorYOffset: '-6',
+                width: 250,
+                required: 'false',
+                value: data.sellerName,
+              },
+              {
+                tabLabel: 'signatoryPosition',
+                documentId: '1',
+                anchorString: '/txt_position/',
+                anchorUnits: 'pixels',
+                anchorXOffset: '0',
+                anchorYOffset: '-6',
+                width: 250,
+                required: 'false',
+              },
+              {
+                tabLabel: 'witness1',
+                documentId: '1',
+                anchorString: '/txt_witness1/',
+                anchorUnits: 'pixels',
+                anchorXOffset: '0',
+                anchorYOffset: '-6',
+                width: 250,
+                required: 'false',
+              },
+              {
+                tabLabel: 'printName1',
+                documentId: '1',
+                anchorString: '/txt_print1/',
+                anchorUnits: 'pixels',
+                anchorXOffset: '0',
+                anchorYOffset: '-6',
+                width: 250,
+                required: 'false',
+              },
+              {
+                tabLabel: 'witness2',
+                documentId: '1',
+                anchorString: '/txt_witness2/',
+                anchorUnits: 'pixels',
+                anchorXOffset: '0',
+                anchorYOffset: '-6',
+                width: 250,
+                required: 'false',
+              },
+              {
+                tabLabel: 'printName2',
+                documentId: '1',
+                anchorString: '/txt_print2/',
+                anchorUnits: 'pixels',
+                anchorXOffset: '0',
+                anchorYOffset: '-6',
+                width: 250,
+                required: 'false',
               },
             ],
           },
@@ -286,6 +349,12 @@ function generateBillOfSaleHtml(data: BillOfSaleData): string {
   .sig-row { margin: 12px 0; }
   .sig-label { display: inline-block; width: 260px; }
   .sig-line { display: inline-block; width: 280px; border-bottom: 1px solid #000; }
+  .sig-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+  .sig-table td { padding: 8px 0; vertical-align: bottom; }
+  .sig-table .lbl { width: 260px; }
+  .sig-table .val { border-bottom: 1px solid #000; }
+  .sig-table .val-tall { border-bottom: 1px solid #000; height: 40px; }
+  .ds-anchor { font-size: 1pt; color: #ffffff; }
 </style></head>
 <body>
 
@@ -356,22 +425,48 @@ function generateBillOfSaleHtml(data: BillOfSaleData): string {
 <div class="signatures">
   <p><strong>Executed by the parties as an agreement on</strong></p>
 
-  <div class="sig-row"><span class="sig-label">Date signed:</span> <span class="sig-line">&nbsp;</span></div>
-
-  <div class="sig-row"><span class="sig-label">Signature of Representative:</span> <span class="sig-line">&nbsp;</span></div>
-  <div class="sig-row"><span class="sig-label">Name of Signatory:</span> <span class="sig-line">&nbsp;</span></div>
-  <div class="sig-row"><span class="sig-label">Position within Company:</span> <span class="sig-line">&nbsp;</span></div>
-
-  <div class="sig-row"><span class="sig-label">In the presence of (Witness):</span> <span class="sig-line">&nbsp;</span></div>
-  <div class="sig-row"><span class="sig-label">Print name:</span> <span class="sig-line">&nbsp;</span></div>
-
-  <div class="sig-row"><span class="sig-label">Signature of Buyer:</span> <span style="font-size: 2px; color: white;">/sig1/</span></div>
-  <div class="sig-row"><span class="sig-label">&nbsp;</span> <span class="sig-line">&nbsp;</span></div>
-
-  <div class="sig-row"><span class="sig-label">In the presence of (Witness):</span> <span class="sig-line">&nbsp;</span></div>
-  <div class="sig-row"><span class="sig-label">Print name:</span> <span class="sig-line">&nbsp;</span></div>
-
-  <p style="font-size: 2px; color: white;">/date1/</p>
+  <table class="sig-table">
+    <tr>
+      <td class="lbl">Date signed:</td>
+      <td class="val"><span class="ds-anchor">/date1/</span></td>
+    </tr>
+    <tr><td colspan="2" style="height:20px;"></td></tr>
+    <tr>
+      <td class="lbl">Signature of Representative:</td>
+      <td class="val">&nbsp;</td>
+    </tr>
+    <tr>
+      <td class="lbl">Name of Signatory:</td>
+      <td class="val"><span class="ds-anchor">/txt_signatory/</span></td>
+    </tr>
+    <tr>
+      <td class="lbl">Position within Company:</td>
+      <td class="val"><span class="ds-anchor">/txt_position/</span></td>
+    </tr>
+    <tr><td colspan="2" style="height:10px;"></td></tr>
+    <tr>
+      <td class="lbl">In the presence of (Witness):</td>
+      <td class="val"><span class="ds-anchor">/txt_witness1/</span></td>
+    </tr>
+    <tr>
+      <td class="lbl">Print name:</td>
+      <td class="val"><span class="ds-anchor">/txt_print1/</span></td>
+    </tr>
+    <tr><td colspan="2" style="height:30px;"></td></tr>
+    <tr>
+      <td class="lbl">Signature of Buyer:</td>
+      <td class="val-tall"><span class="ds-anchor">/sig1/</span></td>
+    </tr>
+    <tr><td colspan="2" style="height:10px;"></td></tr>
+    <tr>
+      <td class="lbl">In the presence of (Witness):</td>
+      <td class="val"><span class="ds-anchor">/txt_witness2/</span></td>
+    </tr>
+    <tr>
+      <td class="lbl">Print name:</td>
+      <td class="val"><span class="ds-anchor">/txt_print2/</span></td>
+    </tr>
+  </table>
 </div>
 
 </body>
