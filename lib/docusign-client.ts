@@ -32,6 +32,37 @@ function getConfig(): DocuSignConfig {
 
 let cachedToken: { token: string; expiresAt: number } | null = null
 
+function formatPrivateKey(raw: string): string {
+  // Handle multiple possible formats from env vars:
+  // 1. Literal \n in string (e.g. from .env with "...\n...")
+  // 2. Actual newlines (e.g. from Vercel env vars)
+  // 3. Wrapped in extra quotes
+  let key = raw.trim()
+
+  // Strip surrounding quotes if present
+  if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+    key = key.slice(1, -1)
+  }
+
+  // Replace literal \n with actual newlines
+  key = key.replace(/\\n/g, '\n')
+
+  // If there are no newlines at all, try to reconstruct PEM format
+  if (!key.includes('\n')) {
+    // Strip header/footer if present inline
+    const body = key
+      .replace('-----BEGIN RSA PRIVATE KEY-----', '')
+      .replace('-----END RSA PRIVATE KEY-----', '')
+      .replace(/\s+/g, '')
+
+    // Rebuild with 64-char lines
+    const lines = body.match(/.{1,64}/g) || []
+    key = ['-----BEGIN RSA PRIVATE KEY-----', ...lines, '-----END RSA PRIVATE KEY-----'].join('\n')
+  }
+
+  return key
+}
+
 async function getAccessToken(): Promise<string> {
   if (cachedToken && Date.now() < cachedToken.expiresAt) {
     return cachedToken.token
@@ -41,23 +72,40 @@ async function getAccessToken(): Promise<string> {
 
   // JWT Grant flow
   const now = Math.floor(Date.now() / 1000)
-  const header = Buffer.from(JSON.stringify({ typ: 'JWT', alg: 'RS256' })).toString('base64url')
-  const payload = Buffer.from(JSON.stringify({
+  const jwtPayload = {
     iss: config.integrationKey,
     sub: config.userId,
     aud: config.authServer,
     iat: now,
     exp: now + 3600,
     scope: 'signature impersonation',
-  })).toString('base64url')
+  }
 
-  // Sign JWT with private key
+  console.log('[DOCUSIGN] JWT payload:', JSON.stringify({
+    iss: jwtPayload.iss,
+    sub: jwtPayload.sub,
+    aud: jwtPayload.aud,
+    iat: jwtPayload.iat,
+    exp: jwtPayload.exp,
+    scope: jwtPayload.scope,
+  }))
+  console.log('[DOCUSIGN] Auth URL:', `https://${config.authServer}/oauth/token`)
+
+  const header = Buffer.from(JSON.stringify({ typ: 'JWT', alg: 'RS256' })).toString('base64url')
+  const payload = Buffer.from(JSON.stringify(jwtPayload)).toString('base64url')
+
+  // Format and sign JWT with private key
+  const privateKeyFormatted = formatPrivateKey(config.privateKey)
+  console.log('[DOCUSIGN] Private key starts with:', privateKeyFormatted.substring(0, 40))
+  console.log('[DOCUSIGN] Private key length:', privateKeyFormatted.length, 'chars,', privateKeyFormatted.split('\n').length, 'lines')
+
   const crypto = await import('crypto')
   const sign = crypto.createSign('RSA-SHA256')
   sign.update(`${header}.${payload}`)
-  const privateKeyFormatted = config.privateKey.replace(/\\n/g, '\n')
   const signature = sign.sign(privateKeyFormatted, 'base64url')
   const jwt = `${header}.${payload}.${signature}`
+
+  console.log('[DOCUSIGN] JWT length:', jwt.length, '— sending token request...')
 
   const tokenResponse = await fetch(`https://${config.authServer}/oauth/token`, {
     method: 'POST',
@@ -70,6 +118,7 @@ async function getAccessToken(): Promise<string> {
 
   if (!tokenResponse.ok) {
     const text = await tokenResponse.text()
+    console.error('[DOCUSIGN] Token request failed:', tokenResponse.status, text)
     throw new Error(`DocuSign token request failed: ${tokenResponse.status} - ${text}`)
   }
 
@@ -79,7 +128,7 @@ async function getAccessToken(): Promise<string> {
     expiresAt: Date.now() + (tokenData.expires_in - 60) * 1000,
   }
 
-  console.log('[DOCUSIGN] Access token obtained')
+  console.log('[DOCUSIGN] Access token obtained successfully')
   return cachedToken.token
 }
 
