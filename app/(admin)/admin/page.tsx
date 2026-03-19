@@ -176,11 +176,6 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* TEMPORARY DEBUG — remove after confirming data loads */}
-      <div className="rounded bg-yellow-100 border border-yellow-300 p-3 text-sm font-mono">
-        DB count: {totalCount} | Vehicles loaded: {vehicles.length} | Session: {session?.user?.email || "none"}
-      </div>
-
       <div>
         <h1 className="text-xl font-semibold text-foreground">
           {getGreeting()}, {userName} -- here&apos;s today at a glance
@@ -205,11 +200,11 @@ export default async function AdminDashboardPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Ref #</TableHead>
-                  <TableHead>VIN</TableHead>
+                  <TableHead>Vehicle</TableHead>
                   <TableHead>Seller</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead>Source</TableHead>
+                  <TableHead>Risk</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Submitted</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -217,7 +212,7 @@ export default async function AdminDashboardPage() {
                 {recentVehicles.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="py-8 text-center text-muted-foreground"
                     >
                       No submissions yet.
@@ -225,33 +220,39 @@ export default async function AdminDashboardPage() {
                   </TableRow>
                 ) : (
                   recentVehicles.map((v) => {
-                    const source = SOURCE_BADGES[v.submissionSource]
+                    const flags = Array.isArray(v.riskFlags) ? v.riskFlags as string[] : []
+                    const hasPpsrIssue = flags.some(f =>
+                      typeof f === 'string' && (f.includes('stolen') || f.includes('written off') || f.includes('Finance'))
+                    )
+                    const riskColor = v.riskScore === 0 ? 'text-gray-400'
+                      : v.riskScore <= 20 ? 'text-green-600'
+                      : v.riskScore <= 50 ? 'text-yellow-600'
+                      : 'text-red-600'
                     return (
                       <TableRow key={v.id}>
                         <TableCell className="font-mono text-xs">
                           {v.confirmationNumber}
                         </TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {v.vin}
-                        </TableCell>
-                        <TableCell>{v.sellerName}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {format(new Date(v.submittedAt), "MMM d, h:mm a")}
-                        </TableCell>
                         <TableCell>
-                          {source && (
-                            <span
-                              className={cn(
-                                "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
-                                source.className
-                              )}
-                            >
-                              {source.label}
+                          <div className="text-sm font-medium">{v.year} {v.make} {v.model}</div>
+                          <div className="text-xs text-muted-foreground font-mono">{v.vin}</div>
+                        </TableCell>
+                        <TableCell className="text-sm">{v.sellerName}</TableCell>
+                        <TableCell>
+                          <span className={cn("text-sm font-semibold", riskColor)}>
+                            {v.riskScore}
+                          </span>
+                          {hasPpsrIssue && (
+                            <span className="ml-1.5 inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700 border border-red-200">
+                              PPSR
                             </span>
                           )}
                         </TableCell>
                         <TableCell>
                           <StatusBadge status={v.status} />
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {format(new Date(v.submittedAt), "MMM d, h:mm a")}
                         </TableCell>
                         <TableCell>
                           <Link
