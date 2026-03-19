@@ -14,13 +14,18 @@ export async function logAudit({
   details?: Prisma.InputJsonValue
   ipAddress?: string
 }) {
-  return prisma.auditLog.create({
-    data: {
-      vehicleId,
-      userId,
-      action,
-      details: details ?? Prisma.JsonNull,
-      ipAddress,
-    },
-  })
+  try {
+    return await prisma.auditLog.create({
+      data: {
+        vehicleId,
+        userId,
+        action,
+        details: details ?? Prisma.JsonNull,
+        ipAddress,
+      },
+    })
+  } catch (err) {
+    console.error('[AUDIT] Failed to create audit log (non-fatal):', err instanceof Error ? err.message : err)
+    return null
+  }
 }

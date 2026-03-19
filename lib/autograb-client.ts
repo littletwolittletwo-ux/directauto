@@ -153,6 +153,7 @@ export async function createCarAnalysis(params: {
 
   const body: Record<string, unknown> = {
     sources: ['ppsr'],
+    region: 'au',
   }
   if (params.vin) body.vin = params.vin
   if (params.rego) body.rego = params.rego

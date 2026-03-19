@@ -81,14 +81,14 @@ async function getAccessToken(): Promise<string> {
     scope: 'signature impersonation',
   }
 
-  console.log('[DOCUSIGN] JWT payload:', JSON.stringify({
-    iss: jwtPayload.iss,
-    sub: jwtPayload.sub,
-    aud: jwtPayload.aud,
-    iat: jwtPayload.iat,
-    exp: jwtPayload.exp,
-    scope: jwtPayload.scope,
-  }))
+  console.log('[DOCUSIGN] === JWT Debug ===')
+  console.log('[DOCUSIGN] DOCUSIGN_INTEGRATION_KEY env:', process.env.DOCUSIGN_INTEGRATION_KEY)
+  console.log('[DOCUSIGN] DOCUSIGN_USER_ID env:', process.env.DOCUSIGN_USER_ID)
+  console.log('[DOCUSIGN] DOCUSIGN_AUTH_SERVER env:', process.env.DOCUSIGN_AUTH_SERVER)
+  console.log('[DOCUSIGN] JWT iss (integrationKey):', jwtPayload.iss)
+  console.log('[DOCUSIGN] JWT sub (userId):', jwtPayload.sub)
+  console.log('[DOCUSIGN] JWT aud (authServer):', jwtPayload.aud)
+  console.log('[DOCUSIGN] JWT scope:', jwtPayload.scope)
   console.log('[DOCUSIGN] Auth URL:', `https://${config.authServer}/oauth/token`)
 
   const header = Buffer.from(JSON.stringify({ typ: 'JWT', alg: 'RS256' })).toString('base64url')

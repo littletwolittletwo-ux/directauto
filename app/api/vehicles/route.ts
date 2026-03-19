@@ -182,23 +182,11 @@ export async function POST(request: NextRequest) {
       sellerPrice: sellerPrice ? parseFloat(sellerPrice) : null,
       location: location || null,
       submissionSource: 'STAFF_ENTRY',
-      createdById: (session.user as any).id,
+      createdById: null,
       status: 'PENDING_VERIFICATION',
     }
 
-    // Try to create with base fields first
-    let vehicle
-    try {
-      vehicle = await prisma.vehicle.create({ data: createData })
-    } catch (baseErr: any) {
-      // If even base create fails (e.g. createdById column missing), retry without it
-      if (baseErr?.message?.includes('does not exist')) {
-        delete createData.createdById
-        vehicle = await prisma.vehicle.create({ data: createData })
-      } else {
-        throw baseErr
-      }
-    }
+    let vehicle = await prisma.vehicle.create({ data: createData })
 
     // Try to add extended fields via update (non-fatal)
     const extendedData: Record<string, unknown> = {}
