@@ -126,27 +126,15 @@ export default function MultiStepForm({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  // Restore from localStorage on mount
+  // Clear old form data on mount so stale drafts don't cause issues
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setFormData((prev) => ({
-          ...prev,
-          ...parsed,
-          // File fields cannot be restored from localStorage
-          licenceFront: null,
-          licenceBack: null,
-          selfie: null,
-          ownershipFiles: [],
-        }));
-      }
+      localStorage.removeItem(STORAGE_KEY);
     } catch {
-      // Ignore parse errors
+      // Ignore
     }
 
-    // Apply prefill after localStorage restore
+    // Apply prefill if provided
     if (prefillVin) {
       setFormData((prev) => ({ ...prev, vin: prefillVin }));
     }

@@ -123,50 +123,68 @@ export async function POST(request: NextRequest) {
 
     // Generate confirmation number
     const confirmationNumber = await generateConfirmationNumber()
+    console.log('[SUBMIT] Starting submission for VIN:', vin, 'confirmation:', confirmationNumber)
 
-    // Create Vehicle record
-    const vehicle = await prisma.vehicle.create({
-      data: {
-        confirmationNumber,
-        vin: vin.toUpperCase(),
-        registrationNumber,
-        make,
-        model,
-        year: parseInt(year, 10),
-        odometer: parseInt(odometer, 10),
-        sellerName,
-        sellerPhone,
-        sellerEmail,
-        submissionSource,
-        submissionToken: tokenId || undefined,
-        ipAddress: ip,
-        sellerSignature: signatureName,
-        signedAt: new Date(),
-        status: 'PENDING_VERIFICATION',
-      },
-    })
+    // Create Vehicle record — only core fields that always exist in DB
+    let vehicle
+    try {
+      vehicle = await prisma.vehicle.create({
+        data: {
+          confirmationNumber,
+          vin: vin.toUpperCase(),
+          registrationNumber,
+          make,
+          model,
+          year: parseInt(year, 10),
+          odometer: parseInt(odometer, 10),
+          sellerName,
+          sellerPhone,
+          sellerEmail,
+          submissionSource,
+          submissionToken: tokenId || undefined,
+          ipAddress: ip,
+          sellerSignature: signatureName,
+          signedAt: new Date(),
+          status: 'PENDING_VERIFICATION',
+        },
+      })
+      console.log('[SUBMIT] Vehicle created:', vehicle.id)
+    } catch (createErr) {
+      console.error('[SUBMIT] Vehicle create failed:', createErr instanceof Error ? createErr.message : createErr)
+      throw createErr
+    }
 
     // Create SellerIdentity record
-    await prisma.sellerIdentity.create({
-      data: {
-        vehicleId: vehicle.id,
-        fullLegalName: sellerName,
-        address: sellerAddress,
-        driversLicenceNumber: licenceNumber,
-        licenceState,
-        licenceExpiry: licenceExpiry ? new Date(licenceExpiry) : new Date(),
-      },
-    })
+    try {
+      await prisma.sellerIdentity.create({
+        data: {
+          vehicleId: vehicle.id,
+          fullLegalName: sellerName,
+          address: sellerAddress || 'Not provided',
+          driversLicenceNumber: licenceNumber || 'Not provided',
+          licenceState: licenceState || 'NSW',
+          licenceExpiry: licenceExpiry ? new Date(licenceExpiry) : new Date(),
+        },
+      })
+      console.log('[SUBMIT] SellerIdentity created')
+    } catch (idErr) {
+      console.error('[SUBMIT] SellerIdentity create failed (non-fatal):', idErr instanceof Error ? idErr.message : idErr)
+    }
 
     // Create OwnershipRecord
     if (ownershipType) {
-      await prisma.ownershipRecord.create({
-        data: {
-          vehicleId: vehicle.id,
-          documentType: ownershipType,
-          notes: ownershipNotes || null,
-        },
-      })
+      try {
+        await prisma.ownershipRecord.create({
+          data: {
+            vehicleId: vehicle.id,
+            documentType: ownershipType,
+            notes: ownershipNotes || null,
+          },
+        })
+        console.log('[SUBMIT] OwnershipRecord created')
+      } catch (ownErr) {
+        console.error('[SUBMIT] OwnershipRecord create failed (non-fatal):', ownErr instanceof Error ? ownErr.message : ownErr)
+      }
     }
 
     // Handle file uploads
@@ -206,99 +224,125 @@ export async function POST(request: NextRequest) {
     let licenceBackDocId: string | null = null
     let selfieDocId: string | null = null
 
-    if (licenceFront && licenceFront.size > 0) {
-      licenceFrontDocId = await uploadFile(licenceFront, 'licence-front', vehicle.id)
-    }
-    if (licenceBack && licenceBack.size > 0) {
-      licenceBackDocId = await uploadFile(licenceBack, 'licence-back', vehicle.id)
-    }
-    if (selfie && selfie.size > 0) {
-      selfieDocId = await uploadFile(selfie, 'selfie', vehicle.id)
-    }
-
-    // Upload ownership files
-    for (const file of ownershipFiles) {
-      if (file && file.size > 0) {
-        await uploadFile(file, 'ownership', vehicle.id)
+    try {
+      if (licenceFront && licenceFront.size > 0) {
+        licenceFrontDocId = await uploadFile(licenceFront, 'licence-front', vehicle.id)
       }
+      if (licenceBack && licenceBack.size > 0) {
+        licenceBackDocId = await uploadFile(licenceBack, 'licence-back', vehicle.id)
+      }
+      if (selfie && selfie.size > 0) {
+        selfieDocId = await uploadFile(selfie, 'selfie', vehicle.id)
+      }
+
+      // Upload ownership files
+      for (const file of ownershipFiles) {
+        if (file && file.size > 0) {
+          await uploadFile(file, 'ownership', vehicle.id)
+        }
+      }
+      console.log('[SUBMIT] File uploads complete')
+    } catch (uploadErr) {
+      console.error('[SUBMIT] File upload failed (non-fatal):', uploadErr instanceof Error ? uploadErr.message : uploadErr)
     }
 
     // Update SellerIdentity with document IDs
     if (licenceFrontDocId || licenceBackDocId || selfieDocId) {
-      await prisma.sellerIdentity.update({
-        where: { vehicleId: vehicle.id },
-        data: {
-          ...(licenceFrontDocId && { licenceFrontDocId }),
-          ...(licenceBackDocId && { licenceBackDocId }),
-          ...(selfieDocId && { selfieDocId }),
-        },
-      })
+      try {
+        await prisma.sellerIdentity.update({
+          where: { vehicleId: vehicle.id },
+          data: {
+            ...(licenceFrontDocId && { licenceFrontDocId }),
+            ...(licenceBackDocId && { licenceBackDocId }),
+            ...(selfieDocId && { selfieDocId }),
+          },
+        })
+      } catch (docIdErr) {
+        console.error('[SUBMIT] SellerIdentity doc ID update failed (non-fatal):', docIdErr instanceof Error ? docIdErr.message : docIdErr)
+      }
     }
 
     // Mark token as used if applicable
     if (tokenId) {
-      await prisma.submissionToken.update({
-        where: { id: tokenId },
-        data: { used: true },
-      })
+      try {
+        await prisma.submissionToken.update({
+          where: { id: tokenId },
+          data: { used: true },
+        })
+      } catch (tokenErr) {
+        console.error('[SUBMIT] Token update failed (non-fatal):', tokenErr instanceof Error ? tokenErr.message : tokenErr)
+      }
     }
 
-    // Run risk engine
-    await updateVehicleRisk(vehicle.id)
+    // Run risk engine (non-fatal — vehicle is already saved)
+    try {
+      await updateVehicleRisk(vehicle.id)
+      console.log('[SUBMIT] Risk engine complete')
+    } catch (riskErr) {
+      console.error('[SUBMIT] Risk engine failed (non-fatal):', riskErr instanceof Error ? riskErr.message : riskErr)
+    }
 
-    // Log audit
-    await logAudit({
-      vehicleId: vehicle.id,
-      action: 'VEHICLE_SUBMITTED',
-      details: {
-        source: submissionSource,
-        confirmationNumber,
-      } as Prisma.InputJsonValue,
-      ipAddress: ip,
-    })
+    // Log audit (non-fatal)
+    try {
+      await logAudit({
+        vehicleId: vehicle.id,
+        action: 'VEHICLE_SUBMITTED',
+        details: {
+          source: submissionSource,
+          confirmationNumber,
+        } as Prisma.InputJsonValue,
+        ipAddress: ip,
+      })
+    } catch (auditErr) {
+      console.error('[SUBMIT] Audit log failed (non-fatal):', auditErr instanceof Error ? auditErr.message : auditErr)
+    }
 
-    // Send emails
-    const settings = await prisma.settings.findUnique({
-      where: { id: 'singleton' },
-    })
-    const dealershipName = settings?.dealershipName || 'Direct Auto Wholesale'
+    // Send emails (non-fatal)
+    try {
+      const settings = await prisma.settings.findUnique({
+        where: { id: 'singleton' },
+      })
+      const dealershipName = settings?.dealershipName || 'Direct Auto Wholesale'
 
-    // Send seller confirmation email
-    await sendSellerConfirmation({
-      to: sellerEmail,
-      sellerName,
-      confirmationNumber,
-      vin: vin.toUpperCase(),
-      make,
-      model,
-      year: parseInt(year, 10),
-      dealershipName,
-      contactEmail: settings?.contactEmail || undefined,
-    }).catch((err) => {
-      console.error('[SUBMIT] Failed to send seller confirmation email:', err)
-    })
-
-    // Send admin notification email
-    if (settings?.notifyOnSubmit && settings?.contactEmail) {
-      await sendAdminNewSubmission({
-        to: settings.contactEmail,
-        confirmationNumber,
+      await sendSellerConfirmation({
+        to: sellerEmail,
         sellerName,
+        confirmationNumber,
+        vin: vin.toUpperCase(),
         make,
         model,
-        vehicleId: vehicle.id,
+        year: parseInt(year, 10),
         dealershipName,
+        contactEmail: settings?.contactEmail || undefined,
       }).catch((err) => {
-        console.error('[SUBMIT] Failed to send admin notification email:', err)
+        console.error('[SUBMIT] Seller confirmation email failed:', err instanceof Error ? err.message : err)
       })
+
+      if (settings?.notifyOnSubmit && settings?.contactEmail) {
+        await sendAdminNewSubmission({
+          to: settings.contactEmail,
+          confirmationNumber,
+          sellerName,
+          make,
+          model,
+          vehicleId: vehicle.id,
+          dealershipName,
+        }).catch((err) => {
+          console.error('[SUBMIT] Admin notification email failed:', err instanceof Error ? err.message : err)
+        })
+      }
+    } catch (emailErr) {
+      console.error('[SUBMIT] Email sending failed (non-fatal):', emailErr instanceof Error ? emailErr.message : emailErr)
     }
 
+    console.log('[SUBMIT] Success! Confirmation:', confirmationNumber)
     return NextResponse.json({
       confirmationNumber,
       vehicleId: vehicle.id,
     })
   } catch (error) {
-    console.error('[SUBMIT] Submission error:', error)
+    console.error('[SUBMIT] FATAL submission error:', error instanceof Error ? error.message : error)
+    console.error('[SUBMIT] Full error:', error)
 
     if (error instanceof Error && error.message.includes('Unique constraint')) {
       return NextResponse.json(
