@@ -103,6 +103,7 @@ export async function getValuation(vehicleId: string, kms: number): Promise<Auto
     body: JSON.stringify({
       region: 'au',
       vehicle_id: vehicleId,
+      features: [],
       kms,
     }),
   })

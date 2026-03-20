@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
 
     // Get valuation — use provided odometer if available, else Autograb's value
     const kms = odometer ? Number(odometer) : (vehicle.odometer || 0)
+    console.log('[AUTOGRAB] Vehicle ID for valuation:', vehicle.vehicle_id, '| Odometer (kms):', kms)
     let valuation = { trade_value: 0, retail_value: 0 }
     if (vehicle.vehicle_id) {
       try {
