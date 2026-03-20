@@ -147,22 +147,45 @@ function mapVehicleResponse(raw: Record<string, unknown>): AutograbVehicle {
   const d = unwrapResponse(raw)
 
   console.log('[AUTOGRAB] Unwrapped vehicle data keys:', Object.keys(d))
-  // Log values for critical fields to debug mapping
-  console.log('[AUTOGRAB] VIN candidates:', JSON.stringify({ vin: d.vin, vins: d.vins, VIN: d.VIN, chassis_number: d.chassis_number, chassis: d.chassis }))
-  console.log('[AUTOGRAB] Colour candidates:', JSON.stringify({ colour: d.colour, color: d.color, exterior_colour: d.exterior_colour, exterior_color: d.exterior_color, primary_colour: d.primary_colour }))
+
+  // Merge nested specification/details objects — Autograb may return make/model/year
+  // inside a nested object while VIN/rego/colour are at the top level
+  let m = { ...d }
+  for (const key of ['specification', 'specifications', 'details', 'vehicle_details', 'attributes', 'vehicle_specification', 'vehicle']) {
+    const nested = d[key]
+    if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+      console.log('[AUTOGRAB] Merging nested "' + key + '" with keys:', Object.keys(nested as object))
+      // Spread nested first so top-level values win when both exist
+      m = { ...(nested as Record<string, unknown>), ...m }
+    }
+  }
+
+  console.log('[AUTOGRAB] Merged keys:', Object.keys(m))
+  console.log('[AUTOGRAB] Make/Model/Year candidates:', JSON.stringify({
+    make: m.make, brand: m.brand, manufacturer: m.manufacturer,
+    model: m.model, family: m.family, series: m.series, model_family: m.model_family,
+    year: m.year, year_of_manufacture: m.year_of_manufacture, build_year: m.build_year, year_group: m.year_group,
+  }))
+  console.log('[AUTOGRAB] Engine/Trans/Body candidates:', JSON.stringify({
+    engine: m.engine, engine_description: m.engine_description, engine_type: m.engine_type,
+    transmission: m.transmission, gearbox: m.gearbox, gear_type: m.gear_type, transmission_type: m.transmission_type,
+    body_type: m.body_type, body_style: m.body_style, body_configuration: m.body_configuration, body: m.body,
+  }))
+  console.log('[AUTOGRAB] VIN candidates:', JSON.stringify({ vin: m.vin, vins: m.vins, VIN: m.VIN, chassis_number: m.chassis_number }))
+  console.log('[AUTOGRAB] Colour candidates:', JSON.stringify({ colour: m.colour, color: m.color, exterior_colour: m.exterior_colour, primary_colour: m.primary_colour }))
 
   const result = {
-    vehicle_id: str(d.vehicle_id, d.vehicleId, d.id, d.autograb_id, d.autograbId),
-    make: strObj(d.make, d.Make, d.manufacturer, d.Manufacturer),
-    model: strObj(d.model, d.Model, d.family, d.Family, d.variant, d.Variant),
-    year: num(d.year, d.Year, d.year_of_manufacture, d.yearOfManufacture, d.build_year, d.buildYear, d.manufacture_year),
-    vin: strArr(d.vin, d.vins, d.Vin, d.VIN, d.chassis_number, d.chassisNumber, d.chassis, d.Chassis, d.vin_number, d.vinNumber),
-    registration_number: strObj(d.registration_number, d.registrationNumber, d.plate, d.Plate, d.rego, d.Rego, d.registration, d.plate_number, d.plateNumber, d.plates, d.number_plate),
-    colour: strObj(d.colour, d.color, d.Colour, d.Color, d.exterior_colour, d.exteriorColour, d.exterior_color, d.exteriorColor, d.primary_colour, d.primaryColour, d.primary_color),
-    engine: strObj(d.engine, d.Engine, d.engine_description, d.engineDescription, d.engine_type, d.engineType),
-    transmission: strObj(d.transmission, d.Transmission, d.transmission_type, d.transmissionType, d.gearbox, d.Gearbox, d.gear_type),
-    body_type: strObj(d.body_type, d.bodyType, d.body_style, d.bodyStyle, d.BodyType, d.body, d.Body, d.body_configuration),
-    odometer: num(d.odometer, d.Odometer, d.kms, d.km, d.mileage, d.Mileage, d.kilometres),
+    vehicle_id: str(m.vehicle_id, m.vehicleId, m.id, m.autograb_id, m.autograbId),
+    make: strObj(m.make, m.Make, m.manufacturer, m.Manufacturer, m.brand, m.Brand, m.make_description),
+    model: strObj(m.model, m.Model, m.family, m.Family, m.variant, m.Variant, m.series, m.Series, m.model_family, m.model_description),
+    year: num(m.year, m.Year, m.year_of_manufacture, m.yearOfManufacture, m.build_year, m.buildYear, m.manufacture_year, m.year_group, m.yearGroup, m.production_year),
+    vin: strArr(m.vin, m.vins, m.Vin, m.VIN, m.chassis_number, m.chassisNumber, m.chassis, m.Chassis, m.vin_number, m.vinNumber),
+    registration_number: strObj(m.registration_number, m.registrationNumber, m.plate, m.Plate, m.rego, m.Rego, m.registration, m.plate_number, m.plateNumber, m.plates, m.number_plate),
+    colour: strObj(m.colour, m.color, m.Colour, m.Color, m.exterior_colour, m.exteriorColour, m.exterior_color, m.exteriorColor, m.primary_colour, m.primaryColour, m.primary_color),
+    engine: strObj(m.engine, m.Engine, m.engine_description, m.engineDescription, m.engine_type, m.engineType, m.engine_size, m.fuel_type, m.fuelType),
+    transmission: strObj(m.transmission, m.Transmission, m.transmission_type, m.transmissionType, m.gearbox, m.Gearbox, m.gear_type, m.gearType, m.drive_type),
+    body_type: strObj(m.body_type, m.bodyType, m.body_style, m.bodyStyle, m.BodyType, m.body, m.Body, m.body_configuration, m.bodyConfiguration),
+    odometer: num(m.odometer, m.Odometer, m.kms, m.km, m.mileage, m.Mileage, m.kilometres),
   }
 
   console.log('[AUTOGRAB] Mapped vehicle:', JSON.stringify(result))
@@ -325,7 +348,7 @@ export async function createCarAnalysis(params: {
 }): Promise<string> {
   const apiKey = getApiKey()
   const base = getBaseUrl()
-  const url = `${base}/v2/car-analysis`
+  const url = `${base}/v2/car-analyses`
 
   const body: Record<string, unknown> = {
     sources: ['ppsr'],
@@ -336,7 +359,8 @@ export async function createCarAnalysis(params: {
   if (params.state) body.state = params.state
   if (params.odometer) body.odometer = params.odometer
 
-  console.log('[AUTOGRAB] Creating car analysis:', JSON.stringify(body))
+  console.log('[AUTOGRAB] Creating car analysis — URL:', url)
+  console.log('[AUTOGRAB] Creating car analysis — body:', JSON.stringify(body))
 
   const response = await fetch(url, {
     method: 'POST',
@@ -361,9 +385,9 @@ export async function createCarAnalysis(params: {
 export async function getCarAnalysisResult(reportId: string): Promise<CarAnalysisResult> {
   const apiKey = getApiKey()
   const base = getBaseUrl()
-  const url = `${base}/v2/car-analysis/${encodeURIComponent(reportId)}`
+  const url = `${base}/v2/car-analyses/${encodeURIComponent(reportId)}`
 
-  console.log('[AUTOGRAB] Fetching car analysis result:', reportId)
+  console.log('[AUTOGRAB] Fetching car analysis result — URL:', url)
 
   const response = await fetch(url, {
     headers: { ApiKey: apiKey },
