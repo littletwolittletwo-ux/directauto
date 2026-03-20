@@ -179,6 +179,13 @@ export async function createAndSendEnvelope(data: BillOfSaleData): Promise<strin
             signHereTabs: [
               {
                 documentId: '1',
+                anchorString: '/sig_rep/',
+                anchorUnits: 'pixels',
+                anchorXOffset: '0',
+                anchorYOffset: '-5',
+              },
+              {
+                documentId: '1',
                 anchorString: '/sig1/',
                 anchorUnits: 'pixels',
                 anchorXOffset: '0',
@@ -204,7 +211,6 @@ export async function createAndSendEnvelope(data: BillOfSaleData): Promise<strin
                 anchorYOffset: '-6',
                 width: 250,
                 required: 'false',
-                value: data.sellerName,
               },
               {
                 tabLabel: 'signatoryPosition',
@@ -255,6 +261,7 @@ export async function createAndSendEnvelope(data: BillOfSaleData): Promise<strin
                 anchorYOffset: '-6',
                 width: 250,
                 required: 'false',
+                value: data.sellerName,
               },
             ],
           },
@@ -326,6 +333,17 @@ function generateBillOfSaleHtml(data: BillOfSaleData): string {
   })
   const blank = '___________'
 
+  // Read logo and convert to base64 for embedding in HTML
+  const fs = require('fs')
+  const path = require('path')
+  let logoBase64 = ''
+  try {
+    const logoPath = path.join(process.cwd(), 'public', 'logo.png')
+    logoBase64 = fs.readFileSync(logoPath).toString('base64')
+  } catch (e) {
+    console.warn('[DOCUSIGN] Could not read logo file:', e)
+  }
+
   return `<!DOCTYPE html>
 <html>
 <head><style>
@@ -357,6 +375,8 @@ function generateBillOfSaleHtml(data: BillOfSaleData): string {
   .ds-anchor { font-size: 1pt; color: #ffffff; }
 </style></head>
 <body>
+
+${logoBase64 ? `<div style="text-align:center;margin-bottom:20px;"><img src="data:image/png;base64,${logoBase64}" style="height:60px;"/></div>` : ''}
 
 <h1>BILL OF SALE</h1>
 <p class="subtitle">This Bill of Sale Agreement is made between:</p>
@@ -433,7 +453,7 @@ function generateBillOfSaleHtml(data: BillOfSaleData): string {
     <tr><td colspan="2" style="height:20px;"></td></tr>
     <tr>
       <td class="lbl">Signature of Representative:</td>
-      <td class="val">&nbsp;</td>
+      <td class="val-tall"><span class="ds-anchor">/sig_rep/</span></td>
     </tr>
     <tr>
       <td class="lbl">Name of Signatory:</td>

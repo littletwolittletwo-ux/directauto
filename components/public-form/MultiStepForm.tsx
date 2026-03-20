@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 import {
   Check,
   Lock,
@@ -338,6 +339,11 @@ export default function MultiStepForm({
   return (
     <div className="min-h-screen bg-gray-50 flex items-start justify-center px-4 py-8 sm:py-12">
       <div className="w-full max-w-2xl">
+        {/* Logo */}
+        <div className="flex justify-center mb-6">
+          <Image src="/logo.png" alt="Direct Auto Wholesale" width={200} height={71} className="object-contain max-w-[200px]" />
+        </div>
+
         {/* Stepper Header */}
         <nav aria-label="Form progress" className="mb-8">
           <ol className="flex items-center justify-between">

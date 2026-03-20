@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
@@ -156,14 +157,12 @@ export function Sidebar({
               collapsed ? "justify-center" : "gap-3"
             )}
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/20 font-bold text-white text-xs">
-              DA
-            </div>
-            {!collapsed && (
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold text-white">Direct Auto</span>
-                <span className="text-[11px] text-blue-200">Wholesale</span>
+            {collapsed ? (
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/20 font-bold text-white text-xs">
+                DA
               </div>
+            ) : (
+              <Image src="/logo.png" alt="Direct Auto Wholesale" width={140} height={50} className="object-contain" />
             )}
           </div>
 
@@ -205,15 +204,7 @@ export function Sidebar({
         >
           <SheetHeader className="border-b border-blue-900 px-4">
             <SheetTitle className="flex items-center gap-3 text-white">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/20 font-bold text-xs">
-                DA
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold">Direct Auto</span>
-                <span className="text-[11px] font-normal text-blue-200">
-                  Wholesale
-                </span>
-              </div>
+              <Image src="/logo.png" alt="Direct Auto Wholesale" width={140} height={50} className="object-contain" />
             </SheetTitle>
           </SheetHeader>
 
