@@ -42,6 +42,18 @@ export async function POST(request: NextRequest) {
     console.log('[AUTOGRAB] Final vehicle to frontend:', JSON.stringify(vehicle))
     console.log('[AUTOGRAB] Final valuation to frontend:', JSON.stringify(valuation))
     console.log('[AUTOGRAB] Key fields — make:', vehicle.make, '| model:', vehicle.model, '| year:', vehicle.year, '| vin:', vehicle.vin, '| engine:', vehicle.engine, '| trans:', vehicle.transmission, '| body:', vehicle.body_type, '| colour:', vehicle.colour)
+    console.log('[AUTOGRAB] Raw colour candidates:', {
+      colour: (vehicle as any).colour,
+      color: (vehicle as any).color,
+      exterior_colour: (vehicle as any).exterior_colour,
+      paint: (vehicle as any).paint,
+    })
+    console.log('[AUTOGRAB] Raw rego candidates:', {
+      registration: (vehicle as any).registration,
+      rego: (vehicle as any).rego,
+      plate: (vehicle as any).plate,
+      registration_number: (vehicle as any).registration_number,
+    })
 
     return NextResponse.json({
       vehicle,

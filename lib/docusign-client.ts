@@ -179,13 +179,6 @@ export async function createAndSendEnvelope(data: BillOfSaleData): Promise<strin
             signHereTabs: [
               {
                 documentId: '1',
-                anchorString: '/sig_rep/',
-                anchorUnits: 'pixels',
-                anchorXOffset: '0',
-                anchorYOffset: '-5',
-              },
-              {
-                documentId: '1',
                 anchorString: '/sig1/',
                 anchorUnits: 'pixels',
                 anchorXOffset: '0',
@@ -211,6 +204,7 @@ export async function createAndSendEnvelope(data: BillOfSaleData): Promise<strin
                 anchorYOffset: '-6',
                 width: 250,
                 required: 'false',
+                value: 'Vikram McGinty',
               },
               {
                 tabLabel: 'signatoryPosition',
@@ -221,6 +215,7 @@ export async function createAndSendEnvelope(data: BillOfSaleData): Promise<strin
                 anchorYOffset: '-6',
                 width: 250,
                 required: 'false',
+                value: 'Head of Sales',
               },
               {
                 tabLabel: 'witness1',
@@ -231,6 +226,7 @@ export async function createAndSendEnvelope(data: BillOfSaleData): Promise<strin
                 anchorYOffset: '-6',
                 width: 250,
                 required: 'false',
+                value: 'Sales Lead 2IC',
               },
               {
                 tabLabel: 'printName1',
@@ -241,6 +237,7 @@ export async function createAndSendEnvelope(data: BillOfSaleData): Promise<strin
                 anchorYOffset: '-6',
                 width: 250,
                 required: 'false',
+                value: 'Parsa Faramarz',
               },
               {
                 tabLabel: 'witness2',
@@ -453,7 +450,7 @@ ${logoBase64 ? `<div style="text-align:center;margin-bottom:20px;"><img src="dat
     <tr><td colspan="2" style="height:20px;"></td></tr>
     <tr>
       <td class="lbl">Signature of Representative:</td>
-      <td class="val-tall"><span class="ds-anchor">/sig_rep/</span></td>
+      <td class="val">&nbsp;</td>
     </tr>
     <tr>
       <td class="lbl">Name of Signatory:</td>

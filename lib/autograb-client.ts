@@ -192,7 +192,8 @@ function mapVehicleResponse(raw: Record<string, unknown>): AutograbVehicle {
     body_type: m.body_type, body_style: m.body_style, body_configuration: m.body_configuration, body: m.body,
   }))
   console.log('[AUTOGRAB] VIN candidates:', JSON.stringify({ vin: m.vin, vins: m.vins, VIN: m.VIN, chassis_number: m.chassis_number }))
-  console.log('[AUTOGRAB] Colour candidates:', JSON.stringify({ colour: m.colour, color: m.color, exterior_colour: m.exterior_colour, primary_colour: m.primary_colour }))
+  console.log('[AUTOGRAB] Colour candidates:', JSON.stringify({ colour: m.colour, color: m.color, exterior_colour: m.exterior_colour, primary_colour: m.primary_colour, paint: m.paint, paint_colour: m.paint_colour, ext_colour: m.ext_colour, vehicle_colour: m.vehicle_colour }))
+  console.log('[AUTOGRAB] Rego candidates:', JSON.stringify({ registration_number: m.registration_number, plate: m.plate, rego: m.rego, registration: m.registration, registration_no: m.registration_no, reg_no: m.reg_no, licence_plate: m.licence_plate, number_plate: m.number_plate }))
 
   const result = {
     vehicle_id: str(m.vehicle_id, m.vehicleId, m.id, m.autograb_id, m.autograbId),
@@ -200,8 +201,8 @@ function mapVehicleResponse(raw: Record<string, unknown>): AutograbVehicle {
     model: strObj(m.model, m.Model, m.family, m.Family, m.variant, m.Variant, m.series, m.Series, m.model_family, m.model_description),
     year: num(m.year, m.Year, m.year_of_manufacture, m.yearOfManufacture, m.build_year, m.buildYear, m.manufacture_year, m.year_group, m.yearGroup, m.production_year),
     vin: strArr(m.vin, m.vins, m.Vin, m.VIN, m.chassis_number, m.chassisNumber, m.chassis, m.Chassis, m.vin_number, m.vinNumber),
-    registration_number: strObj(m.registration_number, m.registrationNumber, m.plate, m.Plate, m.rego, m.Rego, m.registration, m.plate_number, m.plateNumber, m.plates, m.number_plate),
-    colour: strObj(m.colour, m.color, m.Colour, m.Color, m.exterior_colour, m.exteriorColour, m.exterior_color, m.exteriorColor, m.primary_colour, m.primaryColour, m.primary_color),
+    registration_number: strObj(m.registration_number, m.registrationNumber, m.plate, m.Plate, m.rego, m.Rego, m.registration, m.Registration, m.plate_number, m.plateNumber, m.plates, m.number_plate, m.numberPlate, m.registration_no, m.reg_no, m.regNo, m.licence_plate, m.license_plate, m.reg_number, m.regNumber),
+    colour: strObj(m.colour, m.color, m.Colour, m.Color, m.exterior_colour, m.exteriorColour, m.exterior_color, m.exteriorColor, m.primary_colour, m.primaryColour, m.primary_color, m.paint, m.paint_colour, m.paintColour, m.ext_colour, m.extColour, m.vehicle_colour, m.vehicleColour),
     engine: strObj(m.engine, m.Engine, m.engine_description, m.engineDescription, m.engine_type, m.engineType, m.engine_size, m.fuel_type, m.fuelType),
     transmission: strObj(m.transmission, m.Transmission, m.transmission_type, m.transmissionType, m.gearbox, m.Gearbox, m.gear_type, m.gearType, m.drive_type),
     body_type: strObj(m.body_type, m.bodyType, m.body_style, m.bodyStyle, m.BodyType, m.body, m.Body, m.body_configuration, m.bodyConfiguration),
