@@ -72,6 +72,7 @@ export default function AcquireVehiclePage() {
   const [lookupOdometer, setLookupOdometer] = useState("")
   const [searching, setSearching] = useState(false)
   const [lookupResult, setLookupResult] = useState<LookupResult | null>(null)
+  const [wasVinLookup, setWasVinLookup] = useState(false)
 
   // PPSR state
   const [ppsrResult, setPpsrResult] = useState<PPSRResult | null>(null)
@@ -121,6 +122,7 @@ export default function AcquireVehiclePage() {
 
     try {
       const isVin = query.trim().length === 17
+      setWasVinLookup(isVin)
       const res = await fetch("/api/autograb", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -484,6 +486,9 @@ export default function AcquireVehiclePage() {
                   placeholder="e.g. ABC123"
                   className="uppercase"
                 />
+                {wasVinLookup && lookupResult && !form.registrationNumber && (
+                  <p className="text-xs text-amber-600 mt-1">Not available via VIN lookup — enter manually</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Colour</Label>
@@ -492,6 +497,9 @@ export default function AcquireVehiclePage() {
                   onChange={(e) => handleChange("colour", e.target.value)}
                   placeholder="e.g. White"
                 />
+                {wasVinLookup && lookupResult && !form.colour && (
+                  <p className="text-xs text-amber-600 mt-1">Not available via VIN lookup — enter manually</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Engine</Label>
@@ -523,7 +531,7 @@ export default function AcquireVehiclePage() {
                   type="number"
                   value={form.odometer}
                   onChange={(e) => handleChange("odometer", e.target.value)}
-                  placeholder="e.g. 50000"
+                  placeholder="Enter current odometer reading"
                   min={0}
                 />
               </div>
