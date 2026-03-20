@@ -35,24 +35,23 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 })
     }
 
-    // Validate checklist
-    const errors: string[] = []
-    if (!vehicle.ppsrCheck || vehicle.ppsrCheck.status !== 'COMPLETED') {
-      errors.push('PPSR check not completed')
+    // Soft validation — log warnings but don't block (frontend checklist handles gating)
+    const warnings: string[] = []
+    if (!vehicle.ppsrCheck) {
+      warnings.push('PPSR check not completed')
     }
     const hasInspection = vehicle.documents.some((d) => d.category === 'INSPECTION_REPORT') || vehicle.inspectedAt
     if (!hasInspection) {
-      errors.push('Inspection report not uploaded')
-    }
-    if (vehicle.docusignStatus !== 'SIGNED') {
-      errors.push('Bill of Sale not signed')
+      warnings.push('Inspection report not uploaded')
     }
     if (!vehicle.purchasePrice) {
-      errors.push('Purchase price not set')
+      warnings.push('Purchase price not set')
     }
-
-    if (errors.length > 0) {
-      return NextResponse.json({ error: 'Approval checklist incomplete', details: errors }, { status: 400 })
+    if (vehicle.docusignStatus !== 'SENT' && vehicle.docusignStatus !== 'SIGNED') {
+      warnings.push('Bill of Sale not yet sent')
+    }
+    if (warnings.length > 0) {
+      console.log('[APPROVE_PAY] Warnings (admin override):', warnings.join(', '))
     }
 
     // Sync to EasyCars

@@ -214,8 +214,8 @@ export default function VehicleDetailPage() {
   const [approvalChecks, setApprovalChecks] = useState({
     ppsr: false,
     inspection: false,
-    billOfSale: false,
     purchasePrice: false,
+    billOfSale: false,
   })
 
 
@@ -236,10 +236,10 @@ export default function VehicleDetailPage() {
 
       // Auto-set approval checks
       setApprovalChecks({
-        ppsr: data.ppsrCheck?.status === "COMPLETED",
+        ppsr: !!data.ppsrCheck,
         inspection: !!(data.inspectedAt || data.documents?.some((d: any) => d.category === "INSPECTION_REPORT")),
-        billOfSale: data.docusignStatus === "SIGNED",
         purchasePrice: !!data.purchasePrice,
+        billOfSale: data.docusignStatus === "SENT" || data.docusignStatus === "SIGNED",
       })
 
       // Initialize PPSR form from existing data
@@ -1027,28 +1027,21 @@ export default function VehicleDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* Live PPSR Check button */}
-                <div className="flex items-center gap-3">
-                  <Button
-                    onClick={handleRunLivePPSR}
-                    disabled={runningLivePPSR}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    {runningLivePPSR ? (
-                      <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Shield className="mr-1.5 h-4 w-4" />
-                    )}
-                    {runningLivePPSR ? "Searching PPSR..." : "Run PPSR Check"}
-                  </Button>
+                {/* PPSR info message */}
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <p className="text-sm text-blue-800">
+                    PPSR is automatically checked via Autograb when a vehicle is looked up on the Acquire page. If you need to manually verify, visit{" "}
+                    <a href="https://www.ppsr.gov.au" target="_blank" rel="noopener noreferrer" className="underline font-medium">ppsr.gov.au</a>
+                    {" "}and upload the certificate below.
+                  </p>
                   {vehicle.ppsrCheck?.checkedAt && (
-                    <span className="text-xs text-muted-foreground">
+                    <p className="text-xs text-blue-600 mt-1">
                       Last checked:{" "}
                       {format(
                         new Date(vehicle.ppsrCheck.checkedAt),
                         "dd MMM yyyy 'at' h:mm a"
                       )}
-                    </span>
+                    </p>
                   )}
                 </div>
 
@@ -1799,8 +1792,8 @@ export default function VehicleDetailPage() {
                       {[
                         { key: "ppsr" as const, label: "PPSR checked" },
                         { key: "inspection" as const, label: "Inspection report uploaded" },
-                        { key: "billOfSale" as const, label: "Bill of Sale signed" },
                         { key: "purchasePrice" as const, label: "Purchase price confirmed" },
+                        { key: "billOfSale" as const, label: "Bill of Sale sent" },
                       ].map(({ key, label }) => (
                         <label
                           key={key}
@@ -1822,6 +1815,24 @@ export default function VehicleDetailPage() {
                       ))}
                     </div>
 
+                    {!Object.values(approvalChecks).every(Boolean) && (
+                      <p className="text-xs text-amber-600 mt-1">
+                        {Object.entries(approvalChecks)
+                          .filter(([, v]) => !v)
+                          .map(([k]) => {
+                            const labels: Record<string, string> = {
+                              ppsr: "PPSR check",
+                              inspection: "Inspection report",
+                              purchasePrice: "Purchase price",
+                              billOfSale: "Bill of Sale",
+                            }
+                            return labels[k] || k
+                          })
+                          .join(", ")}{" "}
+                        not yet complete
+                      </p>
+                    )}
+
                     <Button
                       className="w-full bg-green-600 hover:bg-green-700"
                       onClick={handleApprovePay}
@@ -1837,12 +1848,6 @@ export default function VehicleDetailPage() {
                       )}
                       {approving ? "Processing..." : "Approve & Pay"}
                     </Button>
-
-                    {!Object.values(approvalChecks).every(Boolean) && (
-                      <p className="text-[11px] text-muted-foreground">
-                        All items must be checked before approving
-                      </p>
-                    )}
                   </>
                 )}
               </CardContent>
