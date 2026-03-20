@@ -142,14 +142,15 @@ export default function AcquireVehiclePage() {
       console.log('[ACQUIRE] Valuation data received:', JSON.stringify(data.valuation))
       setLookupResult(data)
 
-      // Auto-fill form — use query as rego fallback if lookup was by rego
+      // Auto-fill form — use query as fallback for VIN or rego
       const regoFallback = !isVin ? query.trim() : ''
+      const vinFallback = isVin ? query.trim() : ''
       setForm((prev) => ({
         ...prev,
         make: data.vehicle.make || prev.make,
         model: data.vehicle.model || prev.model,
         year: data.vehicle.year ? String(data.vehicle.year) : prev.year,
-        vin: data.vehicle.vin || prev.vin,
+        vin: data.vehicle.vin || vinFallback || prev.vin,
         registrationNumber: data.vehicle.registration_number || regoFallback || prev.registrationNumber,
         colour: data.vehicle.colour || prev.colour,
         engine: data.vehicle.engine || prev.engine,

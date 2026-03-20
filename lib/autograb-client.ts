@@ -160,6 +160,26 @@ function mapVehicleResponse(raw: Record<string, unknown>): AutograbVehicle {
     }
   }
 
+  // Second pass: scan ALL nested objects for fields we still don't have.
+  // Catches VIN inside "identifiers", colour inside "appearance", rego inside
+  // "registration", odometer inside "condition", etc.
+  for (const [key, val] of Object.entries(d)) {
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      const nested = val as Record<string, unknown>
+      let mergedAny = false
+      for (const [nk, nv] of Object.entries(nested)) {
+        if (nv !== undefined && nv !== null && nv !== '' &&
+            (m[nk] === undefined || m[nk] === null || m[nk] === '' || m[nk] === 0)) {
+          m[nk] = nv
+          mergedAny = true
+        }
+      }
+      if (mergedAny) {
+        console.log('[AUTOGRAB] Also merged missing fields from "' + key + '":', Object.keys(nested))
+      }
+    }
+  }
+
   console.log('[AUTOGRAB] Merged keys:', Object.keys(m))
   console.log('[AUTOGRAB] Make/Model/Year candidates:', JSON.stringify({
     make: m.make, brand: m.brand, manufacturer: m.manufacturer,
