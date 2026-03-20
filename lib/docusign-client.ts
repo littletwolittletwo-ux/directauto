@@ -237,7 +237,7 @@ export async function createAndSendEnvelope(data: BillOfSaleData): Promise<strin
                 anchorYOffset: '-6',
                 width: 250,
                 required: 'false',
-                value: 'Parsa Faramarz',
+                value: 'Parsa Famarazi',
               },
               {
                 tabLabel: 'witness2',
