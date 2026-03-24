@@ -149,7 +149,7 @@ export function DocumentUploader({
       "image/webp": [".webp"],
       "application/pdf": [".pdf"],
     },
-    maxSize: 40 * 1024 * 1024, // 40MB
+    maxSize: 100 * 1024 * 1024, // 100MB
   })
 
   function removeUpload(index: number) {
@@ -186,7 +186,7 @@ export function DocumentUploader({
           {isDragActive ? "Drop files here" : "Drag & drop files here"}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          or click to browse. JPEG, PNG, WebP, PDF up to 40MB
+          or click to browse. JPEG, PNG, WebP, PDF up to 100MB
         </p>
       </div>
 

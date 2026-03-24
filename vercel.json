@@ -1,4 +1,12 @@
 {
+  "buildCommand": "npx prisma generate && npm run build",
+  "installCommand": "npm install --legacy-peer-deps",
+  "framework": "nextjs",
   "regions": ["sin1"],
-  "installCommand": "npm install --legacy-peer-deps"
+  "functions": {
+    "app/api/submit/route.ts": { "maxDuration": 60 },
+    "app/api/documents/upload/route.ts": { "maxDuration": 60 },
+    "app/api/vehicles/[id]/docusign/route.ts": { "maxDuration": 60 },
+    "app/api/export/pdf/[id]/route.ts": { "maxDuration": 60 }
+  }
 }
