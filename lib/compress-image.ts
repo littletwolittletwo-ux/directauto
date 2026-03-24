@@ -1,13 +1,13 @@
 /**
  * Client-side image compression using Canvas API.
  * - Resizes to max 1200px on longest side
- * - Converts to JPEG at 0.72 quality
+ * - Converts to JPEG at 0.75 quality
  * - Iterates down quality if still over 800KB
  * - Skips non-image files (PDFs, etc.)
  */
 
 const MAX_DIMENSION = 1200
-const INITIAL_QUALITY = 0.72
+const INITIAL_QUALITY = 0.75
 const TARGET_SIZE = 800 * 1024 // 800KB
 
 function isImageFile(file: File): boolean {

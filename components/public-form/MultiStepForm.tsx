@@ -17,6 +17,7 @@ import Step3Identity from "./Step3Identity";
 import Step4Ownership from "./Step4Ownership";
 import Step5Declaration from "./Step5Declaration";
 import SuccessScreen from "./SuccessScreen";
+import { uploadFileToSupabase, uploadFilesToSupabase } from "@/lib/upload-to-supabase";
 
 const STORAGE_KEY = "lmct-submission-draft";
 
@@ -245,49 +246,57 @@ export default function MultiStepForm({
     setSubmitError(null);
 
     try {
-      const fd = new FormData();
+      // Upload files directly to Supabase Storage (bypasses Vercel 4.5MB limit)
+      let licenceFrontPath = "";
+      let licenceBackPath = "";
+      let selfiePath = "";
+      let ownershipPaths: string[] = [];
 
-      // Append all text fields
-      fd.append("vin", formData.vin);
-      fd.append("registrationNumber", formData.registrationNumber);
-      fd.append("make", formData.make);
-      fd.append("model", formData.model);
-      fd.append("year", formData.year);
-      fd.append("odometer", formData.odometer);
-      fd.append("sellerName", formData.sellerName);
-      fd.append("sellerPhone", formData.sellerPhone);
-      fd.append("sellerEmail", formData.sellerEmail);
-      fd.append("sellerAddress", formData.sellerAddress);
-      fd.append("licenceNumber", formData.licenceNumber);
-      fd.append("licenceState", formData.licenceState);
-      fd.append("licenceExpiry", formData.licenceExpiry);
-      fd.append("ownershipType", formData.ownershipType);
-      fd.append("ownershipNotes", formData.ownershipNotes);
-      fd.append("declarationAgreed", String(formData.declarationAgreed));
-      fd.append("consentAgreed", String(formData.consentAgreed));
-      fd.append("signatureName", formData.signatureName);
-
-      if (tokenId) {
-        fd.append("tokenId", tokenId);
-      }
-
-      // Append file fields
       if (formData.licenceFront) {
-        fd.append("licenceFront", formData.licenceFront);
+        licenceFrontPath = await uploadFileToSupabase(formData.licenceFront, "licence-front");
       }
       if (formData.licenceBack) {
-        fd.append("licenceBack", formData.licenceBack);
+        licenceBackPath = await uploadFileToSupabase(formData.licenceBack, "licence-back");
       }
       if (formData.selfie) {
-        fd.append("selfie", formData.selfie);
+        selfiePath = await uploadFileToSupabase(formData.selfie, "selfie");
       }
-      for (const file of formData.ownershipFiles) {
-        fd.append("ownershipFiles", file);
+      if (formData.ownershipFiles.length > 0) {
+        ownershipPaths = await uploadFilesToSupabase(formData.ownershipFiles, "ownership");
       }
+
+      // Send only text fields + storage paths (no File objects)
+      const payload = {
+        vin: formData.vin,
+        registrationNumber: formData.registrationNumber,
+        make: formData.make,
+        model: formData.model,
+        year: formData.year,
+        odometer: formData.odometer,
+        sellerName: formData.sellerName,
+        sellerPhone: formData.sellerPhone,
+        sellerEmail: formData.sellerEmail,
+        sellerAddress: formData.sellerAddress,
+        licenceNumber: formData.licenceNumber,
+        licenceState: formData.licenceState,
+        licenceExpiry: formData.licenceExpiry,
+        ownershipType: formData.ownershipType,
+        ownershipNotes: formData.ownershipNotes,
+        declarationAgreed: formData.declarationAgreed,
+        consentAgreed: formData.consentAgreed,
+        signatureName: formData.signatureName,
+        ...(tokenId ? { tokenId } : {}),
+        // Storage paths instead of files
+        licenceFrontPath,
+        licenceBackPath,
+        selfiePath,
+        ownershipPaths,
+      };
 
       const response = await fetch("/api/submit", {
         method: "POST",
-        body: fd,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {

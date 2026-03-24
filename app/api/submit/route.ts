@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { rateLimit } from '@/lib/rate-limit'
-import { saveFile, saveToBlobStorage, useBlobStorage } from '@/lib/storage'
 import { updateVehicleRisk } from '@/lib/risk-engine'
 import { logAudit } from '@/lib/audit'
 import { sendSellerConfirmation, sendAdminNewSubmission } from '@/lib/mailer'
@@ -44,12 +43,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Parse FormData
-    const formData = await request.formData()
+    // Parse JSON body (files already uploaded to Supabase Storage)
+    const body = await request.json()
 
     // Honeypot check
-    const honeypot = formData.get('website') as string | null
-    if (honeypot) {
+    if (body.website) {
       return NextResponse.json(
         { error: 'Invalid submission.' },
         { status: 400 }
@@ -57,31 +55,31 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract text fields
-    const vin = (formData.get('vin') as string || '').trim()
-    const registrationNumber = (formData.get('registrationNumber') as string || '').trim()
-    const make = (formData.get('make') as string || '').trim()
-    const model = (formData.get('model') as string || '').trim()
-    const year = (formData.get('year') as string || '').trim()
-    const odometer = (formData.get('odometer') as string || '').trim()
-    const sellerName = (formData.get('sellerName') as string || '').trim()
-    const sellerPhone = (formData.get('sellerPhone') as string || '').trim()
-    const sellerEmail = (formData.get('sellerEmail') as string || '').trim()
-    const sellerAddress = (formData.get('sellerAddress') as string || '').trim()
-    const licenceNumber = (formData.get('licenceNumber') as string || '').trim()
-    const licenceState = (formData.get('licenceState') as string || '').trim()
-    const licenceExpiry = (formData.get('licenceExpiry') as string || '').trim()
-    const ownershipType = (formData.get('ownershipType') as string || '').trim()
-    const ownershipNotes = (formData.get('ownershipNotes') as string || '').trim()
-    const declarationAgreed = formData.get('declarationAgreed') === 'true'
-    const consentAgreed = formData.get('consentAgreed') === 'true'
-    const signatureName = (formData.get('signatureName') as string || '').trim()
-    const tokenId = (formData.get('tokenId') as string | null) || null
+    const vin = (body.vin || '').trim()
+    const registrationNumber = (body.registrationNumber || '').trim()
+    const make = (body.make || '').trim()
+    const model = (body.model || '').trim()
+    const year = (body.year || '').trim()
+    const odometer = (body.odometer || '').trim()
+    const sellerName = (body.sellerName || '').trim()
+    const sellerPhone = (body.sellerPhone || '').trim()
+    const sellerEmail = (body.sellerEmail || '').trim()
+    const sellerAddress = (body.sellerAddress || '').trim()
+    const licenceNumber = (body.licenceNumber || '').trim()
+    const licenceState = (body.licenceState || '').trim()
+    const licenceExpiry = (body.licenceExpiry || '').trim()
+    const ownershipType = (body.ownershipType || '').trim()
+    const ownershipNotes = (body.ownershipNotes || '').trim()
+    const declarationAgreed = body.declarationAgreed === true || body.declarationAgreed === 'true'
+    const consentAgreed = body.consentAgreed === true || body.consentAgreed === 'true'
+    const signatureName = (body.signatureName || '').trim()
+    const tokenId = body.tokenId || null
 
-    // File fields
-    const licenceFront = formData.get('licenceFront') as File | null
-    const licenceBack = formData.get('licenceBack') as File | null
-    const selfie = formData.get('selfie') as File | null
-    const ownershipFiles = formData.getAll('ownershipFiles') as File[]
+    // Supabase Storage paths (files already uploaded from browser)
+    const licenceFrontPath = (body.licenceFrontPath || '').trim()
+    const licenceBackPath = (body.licenceBackPath || '').trim()
+    const selfiePath = (body.selfiePath || '').trim()
+    const ownershipPaths: string[] = Array.isArray(body.ownershipPaths) ? body.ownershipPaths : []
 
     // Validate required fields
     const missingFields: string[] = []
@@ -227,34 +225,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Handle file uploads
-    const useBlob = useBlobStorage()
-    const uploadFile = async (
-      file: File,
+    // Create Document records from Supabase Storage paths (files already uploaded from browser)
+    const createDocFromPath = async (
+      storagePath: string,
       category: string,
       vehId: string
     ): Promise<string> => {
-      const buffer = Buffer.from(await file.arrayBuffer())
-      let storagePath: string
+      const fileName = storagePath.split('/').pop() || 'file'
+      const ext = fileName.split('.').pop()?.toLowerCase() || ''
+      const mimeType = ext === 'pdf' ? 'application/pdf' : `image/${ext === 'jpg' ? 'jpeg' : ext}`
 
-      if (useBlob) {
-        const result = await saveToBlobStorage(buffer, vehId, category, file.name, file.type)
-        storagePath = result.storagePath
-      } else {
-        const result = saveFile(buffer, vehId, category, file.name, file.type)
-        storagePath = result.storagePath
-      }
-
-      console.log('[SUBMIT] Uploaded file:', category, storagePath)
+      console.log('[SUBMIT] Creating doc record:', category, storagePath)
 
       const doc = await prisma.document.create({
         data: {
           vehicleId: vehId,
           category,
-          originalName: file.name,
+          originalName: fileName,
           storagePath,
-          mimeType: file.type,
-          sizeBytes: file.size,
+          mimeType,
+          sizeBytes: 0,
         },
       })
       return doc.id
@@ -265,25 +255,25 @@ export async function POST(request: NextRequest) {
     let selfieDocId: string | null = null
 
     try {
-      if (licenceFront && licenceFront.size > 0) {
-        licenceFrontDocId = await uploadFile(licenceFront, 'licence-front', vehicle.id)
+      if (licenceFrontPath) {
+        licenceFrontDocId = await createDocFromPath(licenceFrontPath, 'licence-front', vehicle.id)
       }
-      if (licenceBack && licenceBack.size > 0) {
-        licenceBackDocId = await uploadFile(licenceBack, 'licence-back', vehicle.id)
+      if (licenceBackPath) {
+        licenceBackDocId = await createDocFromPath(licenceBackPath, 'licence-back', vehicle.id)
       }
-      if (selfie && selfie.size > 0) {
-        selfieDocId = await uploadFile(selfie, 'selfie', vehicle.id)
+      if (selfiePath) {
+        selfieDocId = await createDocFromPath(selfiePath, 'selfie', vehicle.id)
       }
 
-      // Upload ownership files
-      for (const file of ownershipFiles) {
-        if (file && file.size > 0) {
-          await uploadFile(file, 'ownership', vehicle.id)
+      // Create records for ownership files
+      for (const path of ownershipPaths) {
+        if (path) {
+          await createDocFromPath(path, 'ownership', vehicle.id)
         }
       }
-      console.log('[SUBMIT] File uploads complete')
-    } catch (uploadErr) {
-      console.error('[SUBMIT] File upload failed (non-fatal):', uploadErr instanceof Error ? uploadErr.message : uploadErr)
+      console.log('[SUBMIT] Document records created')
+    } catch (docErr) {
+      console.error('[SUBMIT] Document record creation failed (non-fatal):', docErr instanceof Error ? docErr.message : docErr)
     }
 
     // Update SellerIdentity with document IDs
