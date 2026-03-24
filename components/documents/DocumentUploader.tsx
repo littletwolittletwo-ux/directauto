@@ -14,6 +14,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { compressImage } from "@/lib/compress-image"
 
 interface ExistingDoc {
   id: string
@@ -37,7 +38,7 @@ interface DocumentUploaderProps {
 interface FileUploadState {
   file: File
   progress: number
-  status: "uploading" | "done" | "error"
+  status: "compressing" | "uploading" | "done" | "error"
   docId?: string
   previewUrl?: string
   errorMessage?: string
@@ -123,19 +124,39 @@ export function DocumentUploader({
   )
 
   const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
+    async (acceptedFiles: File[]) => {
       const startIndex = uploads.length
       const newUploads: FileUploadState[] = acceptedFiles.map((file) => ({
         file,
         progress: 0,
-        status: "uploading" as const,
+        status: "compressing" as const,
       }))
 
       setUploads((prev) => [...prev, ...newUploads])
 
-      acceptedFiles.forEach((file, idx) => {
-        uploadFile(file, startIndex + idx)
-      })
+      for (let idx = 0; idx < acceptedFiles.length; idx++) {
+        const file = acceptedFiles[idx]
+        const globalIdx = startIndex + idx
+        try {
+          const compressed = await compressImage(file)
+          setUploads((prev) =>
+            prev.map((u, i) =>
+              i === globalIdx
+                ? { ...u, file: compressed, status: "uploading" as const }
+                : u
+            )
+          )
+          uploadFile(compressed, globalIdx)
+        } catch {
+          // Compression failed — upload original
+          setUploads((prev) =>
+            prev.map((u, i) =>
+              i === globalIdx ? { ...u, status: "uploading" as const } : u
+            )
+          )
+          uploadFile(file, globalIdx)
+        }
+      }
     },
     [uploads.length, uploadFile]
   )
@@ -286,6 +307,9 @@ export function DocumentUploader({
               {/* File info + progress */}
               <div className="flex-1 min-w-0">
                 <p className="truncate text-sm">{upload.file.name}</p>
+                {upload.status === "compressing" && (
+                  <p className="mt-0.5 text-xs text-blue-600">Optimising...</p>
+                )}
                 {upload.status === "uploading" && (
                   <Progress value={upload.progress} className="mt-1" />
                 )}

@@ -3,8 +3,9 @@
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Upload, Camera, X } from "lucide-react";
+import { Upload, Camera, X, Loader2 } from "lucide-react";
 import { useRef, useState, useCallback } from "react";
+import { compressFiles } from "@/lib/compress-image";
 
 const OWNERSHIP_OPTIONS = [
   { value: "registration_certificate", label: "Registration certificate" },
@@ -78,12 +79,19 @@ export default function Step4Ownership({
 }: Step4Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [compressing, setCompressing] = useState(false);
 
   const handleAddFiles = useCallback(
-    (newFiles: FileList | File[]) => {
+    async (newFiles: FileList | File[]) => {
       const fileArray = Array.from(newFiles);
-      const combined = [...formData.ownershipFiles, ...fileArray];
-      onFilesChange(combined);
+      setCompressing(true);
+      try {
+        const compressed = await compressFiles(fileArray);
+        const combined = [...formData.ownershipFiles, ...compressed];
+        onFilesChange(combined);
+      } finally {
+        setCompressing(false);
+      }
     },
     [formData.ownershipFiles, onFilesChange]
   );
@@ -157,6 +165,13 @@ export default function Step4Ownership({
                 onRemove={handleRemoveFile}
               />
             ))}
+          </div>
+        )}
+
+        {compressing && (
+          <div className="flex items-center justify-center gap-2 rounded-lg border border-border bg-muted/30 p-4">
+            <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+            <span className="text-sm font-medium text-muted-foreground">Optimising...</span>
           </div>
         )}
 

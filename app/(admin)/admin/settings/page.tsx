@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
+import { compressImage } from "@/lib/compress-image"
 import { format } from "date-fns"
 import {
   Settings,
@@ -274,18 +275,19 @@ export default function SettingsPage() {
     toast.success("Public form URL copied to clipboard")
   }
 
-  function handleLogoChange(
+  async function handleLogoChange(
     e: React.ChangeEvent<HTMLInputElement>,
     target: "general" | "branding"
   ) {
     const file = e.target.files?.[0]
     if (!file) return
-    const preview = URL.createObjectURL(file)
+    const compressed = await compressImage(file)
+    const preview = URL.createObjectURL(compressed)
     if (target === "general") {
-      setLogoFile(file)
+      setLogoFile(compressed)
       setLogoPreview(preview)
     } else {
-      setBrandLogoFile(file)
+      setBrandLogoFile(compressed)
       setBrandLogoPreview(preview)
     }
   }

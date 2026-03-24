@@ -9,8 +9,9 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Upload, Camera, X } from "lucide-react";
+import { Upload, Camera, X, Loader2 } from "lucide-react";
 import { useRef, useState, useCallback } from "react";
+import { compressImage } from "@/lib/compress-image";
 
 const AU_STATES = [
   { value: "NSW", label: "New South Wales" },
@@ -55,14 +56,21 @@ function FileUploadZone({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [compressing, setCompressing] = useState(false);
 
   const handleFile = useCallback(
-    (f: File) => {
-      onSelect(f);
-      if (f.type.startsWith("image/")) {
-        const reader = new FileReader();
-        reader.onloadend = () => setPreview(reader.result as string);
-        reader.readAsDataURL(f);
+    async (f: File) => {
+      setCompressing(true);
+      try {
+        const compressed = await compressImage(f);
+        onSelect(compressed);
+        if (compressed.type.startsWith("image/")) {
+          const reader = new FileReader();
+          reader.onloadend = () => setPreview(reader.result as string);
+          reader.readAsDataURL(compressed);
+        }
+      } finally {
+        setCompressing(false);
       }
     },
     [onSelect]
@@ -102,6 +110,18 @@ function FileUploadZone({
       reader.onloadend = () => setPreview(reader.result as string);
       reader.readAsDataURL(file);
     }
+  }
+
+  if (compressing) {
+    return (
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">{label}</Label>
+        <div className="flex items-center justify-center gap-2 rounded-lg border border-border bg-muted/30 p-6">
+          <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+          <span className="text-sm font-medium text-muted-foreground">Optimising...</span>
+        </div>
+      </div>
+    );
   }
 
   if (file && preview) {
