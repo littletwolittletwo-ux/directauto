@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getFilePath } from '@/lib/storage'
+import { createClient } from '@supabase/supabase-js'
 import fs from 'fs'
 
 interface RouteParams {
@@ -68,6 +69,35 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       headers.set('Cache-Control', 'private, max-age=3600')
 
       return new Response(blobResponse.body, { headers })
+    }
+
+    // Supabase Storage path (e.g. "submissions/...")
+    if (document.storagePath.startsWith('submissions/')) {
+      console.log('[DOCUMENT_GET] Fetching from Supabase Storage:', document.storagePath)
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      )
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .download(document.storagePath)
+
+      if (error || !data) {
+        console.error('[DOCUMENT_GET] Supabase download failed:', error?.message)
+        return NextResponse.json(
+          { error: 'Failed to fetch file from storage.' },
+          { status: 502 }
+        )
+      }
+
+      const buffer = Buffer.from(await data.arrayBuffer())
+      const headers = new Headers()
+      headers.set('Content-Type', contentType)
+      headers.set('Content-Disposition', `${disposition}; filename="${fileName}"`)
+      headers.set('Content-Length', String(buffer.length))
+      headers.set('Cache-Control', 'private, max-age=3600')
+
+      return new NextResponse(buffer, { status: 200, headers })
     }
 
     // Local filesystem fallback
