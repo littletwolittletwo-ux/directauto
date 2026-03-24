@@ -32,5 +32,33 @@
 
   body {
     @apply bg-background text-foreground;
+    /* iOS safe area support */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* iOS Safari: use dynamic viewport height for full-height layouts */
+  .min-h-screen-safe {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  /* Prevent iOS Safari zoom on input focus (font-size < 16px triggers zoom) */
+  @supports (-webkit-touch-callout: none) {
+    input, textarea, select {
+      font-size: 16px !important;
+    }
+    @media (min-width: 768px) {
+      input, textarea, select {
+        font-size: inherit !important;
+      }
+    }
+  }
+
+  /* iOS Safari: smooth scrolling for overflow containers */
+  .overflow-y-auto, .overflow-x-auto, .overflow-auto {
+    -webkit-overflow-scrolling: touch;
   }
 }

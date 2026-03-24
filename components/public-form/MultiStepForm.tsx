@@ -320,7 +320,7 @@ export default function MultiStepForm({
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-start justify-center px-4 py-8 sm:py-12">
+      <div className="min-h-screen-safe bg-gray-50 flex items-start justify-center px-4 py-8 sm:py-12">
         <div className="w-full max-w-2xl">
           <Card>
             <CardContent className="p-6 sm:p-8">
@@ -337,7 +337,7 @@ export default function MultiStepForm({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-start justify-center px-4 py-8 sm:py-12">
+    <div className="min-h-screen-safe bg-gray-50 flex items-start justify-center px-4 py-8 sm:py-12">
       <div className="w-full max-w-2xl">
         {/* Logo */}
         <div className="flex justify-center mb-6">

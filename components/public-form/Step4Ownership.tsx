@@ -173,7 +173,6 @@ export default function Step4Ownership({
         >
           <div className="flex items-center gap-3 text-muted-foreground">
             <Upload className="h-6 w-6" />
-            <Camera className="h-6 w-6" />
           </div>
           <p className="mt-2 text-sm font-medium text-foreground">
             {formData.ownershipFiles.length > 0
@@ -181,13 +180,13 @@ export default function Step4Ownership({
               : "Upload ownership documents"}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Tap to browse or use camera
+            Tap to browse files
           </p>
+          {/* No capture attribute — iOS shows camera + library + files picker */}
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*,application/pdf"
-            capture="environment"
             multiple
             className="sr-only"
             onChange={(e) => {
@@ -198,6 +197,25 @@ export default function Step4Ownership({
             }}
           />
         </div>
+        {/* Separate camera button for mobile */}
+        <button
+          type="button"
+          onClick={() => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = "image/*";
+            input.capture = "environment";
+            input.onchange = (e) => {
+              const files = (e.target as HTMLInputElement).files;
+              if (files && files.length > 0) handleAddFiles(files);
+            };
+            input.click();
+          }}
+          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:bg-muted/30 transition-colors min-h-[44px] sm:hidden"
+        >
+          <Camera className="h-4 w-4" />
+          Take Photo
+        </button>
       </div>
 
       <div className="space-y-2">

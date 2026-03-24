@@ -18,7 +18,7 @@ import {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex min-h-screen-safe items-center justify-center bg-slate-50">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     }>
@@ -64,7 +64,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+    <div className="flex min-h-screen-safe items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-md">
         {/* Branding */}
         <div className="mb-8 flex flex-col items-center gap-3 text-center">

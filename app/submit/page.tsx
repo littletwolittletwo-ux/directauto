@@ -14,7 +14,7 @@ export default async function SubmitPage() {
   const primaryColor = settings?.primaryColor || '#1e40af'
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen-safe bg-gray-50">
       <div className="mx-auto max-w-2xl px-4 pt-8 sm:pt-12">
         {/* Dealership Branding */}
         <div className="mb-8 flex flex-col items-center gap-3">

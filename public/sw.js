@@ -1,10 +1,12 @@
-const CACHE_NAME = 'direct-auto-v1'
+const CACHE_NAME = 'direct-auto-v2'
 
 const STATIC_ASSETS = [
   '/',
   '/admin',
   '/login',
   '/manifest.json',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
   '/icons/icon-192.svg',
   '/icons/icon-512.svg',
 ]

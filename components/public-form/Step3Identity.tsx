@@ -52,6 +52,7 @@ function FileUploadZone({
   fieldId: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -150,18 +151,17 @@ function FileUploadZone({
       >
         <div className="flex items-center gap-3 text-muted-foreground">
           <Upload className="h-6 w-6" />
-          <Camera className="h-6 w-6" />
         </div>
         <p className="mt-2 text-sm font-medium text-foreground">{description}</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Tap to browse or use camera
+          Tap to browse photos
         </p>
+        {/* Main file input — no capture so iOS shows camera + library picker */}
         <input
           ref={inputRef}
           id={fieldId}
           type="file"
           accept="image/*"
-          capture="environment"
           className="sr-only"
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -169,6 +169,29 @@ function FileUploadZone({
           }}
         />
       </div>
+      {/* Separate camera button for direct camera access on mobile */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          cameraInputRef.current?.click();
+        }}
+        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:bg-muted/30 transition-colors min-h-[44px] sm:hidden"
+      >
+        <Camera className="h-4 w-4" />
+        Take Photo
+      </button>
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleFile(f);
+        }}
+      />
     </div>
   );
 }

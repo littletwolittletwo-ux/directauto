@@ -79,30 +79,61 @@ export default function SigningPage() {
     fetchData()
   }, [fetchData])
 
+  // Set up canvas for retina/high-DPI displays (iOS Safari)
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const dpr = window.devicePixelRatio || 1
+    const rect = canvas.getBoundingClientRect()
+    canvas.width = rect.width * dpr
+    canvas.height = rect.height * dpr
+    const ctx = canvas.getContext("2d")
+    if (ctx) {
+      ctx.scale(dpr, dpr)
+    }
+  }, [useTypedSig])
+
+  // Canvas drawing helpers — get coordinates from mouse or touch
+  function getCanvasCoords(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current
+    if (!canvas) return { x: 0, y: 0 }
+    const rect = canvas.getBoundingClientRect()
+    if ("touches" in e) {
+      return {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top,
+      }
+    }
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    }
+  }
+
   // Canvas drawing handlers
   function startDraw(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
+    // Prevent page scroll while drawing on iOS Safari
+    if ("touches" in e) e.preventDefault()
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext("2d")
     if (!ctx) return
     setIsDrawing(true)
     setHasDrawn(true)
-    const rect = canvas.getBoundingClientRect()
-    const x = "touches" in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left
-    const y = "touches" in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top
+    const { x, y } = getCanvasCoords(e)
     ctx.beginPath()
     ctx.moveTo(x, y)
   }
 
   function draw(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
     if (!isDrawing) return
+    // Prevent page scroll while drawing on iOS Safari
+    if ("touches" in e) e.preventDefault()
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext("2d")
     if (!ctx) return
-    const rect = canvas.getBoundingClientRect()
-    const x = "touches" in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left
-    const y = "touches" in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top
+    const { x, y } = getCanvasCoords(e)
     ctx.lineWidth = 2
     ctx.lineCap = "round"
     ctx.strokeStyle = "#1e293b"
@@ -119,7 +150,8 @@ export default function SigningPage() {
     if (!canvas) return
     const ctx = canvas.getContext("2d")
     if (!ctx) return
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    const dpr = window.devicePixelRatio || 1
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr)
     setHasDrawn(false)
   }
 
@@ -347,7 +379,7 @@ export default function SigningPage() {
               value={signerName}
               onChange={(e) => setSignerName(e.target.value)}
               placeholder="Type your full legal name"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             />
           </div>
 
@@ -388,10 +420,8 @@ export default function SigningPage() {
               <div className="relative">
                 <canvas
                   ref={canvasRef}
-                  width={600}
-                  height={120}
-                  className="w-full border border-gray-300 rounded-lg bg-white cursor-crosshair touch-none"
-                  style={{ height: "120px" }}
+                  className="w-full border border-gray-300 rounded-lg bg-white cursor-crosshair"
+                  style={{ height: "120px", touchAction: "none" }}
                   onMouseDown={startDraw}
                   onMouseMove={draw}
                   onMouseUp={endDraw}
@@ -557,7 +587,7 @@ export default function SigningPage() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen-safe bg-gray-50">
       {/* Header */}
       <div className="bg-[#1e40af] text-white text-center py-5">
         <h1 className="text-lg font-bold tracking-wide">DIRECT AUTO WHOLESALE</h1>

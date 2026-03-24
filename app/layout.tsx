@@ -1,13 +1,26 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { Providers } from "@/components/providers"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
+  themeColor: "#1e40af",
+}
+
 export const metadata: Metadata = {
   title: "Direct Auto Wholesale",
   description: "Vehicle acquisition compliance platform",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Direct Auto",
+  },
 }
 
 export default function RootLayout({
@@ -19,12 +32,8 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Direct Auto" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
-        <meta name="theme-color" content="#1e40af" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png" />
       </head>
       <body className={`${inter.className} antialiased`}>
         <Providers>{children}</Providers>
