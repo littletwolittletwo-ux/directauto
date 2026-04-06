@@ -78,6 +78,7 @@ model Vehicle {
   ownership          OwnershipRecord?
   ppsrCheck          PPSRCheck?
   saleAgreement      SaleAgreement?
+  billOfSale         BillOfSale?
   documents          Document[]
   auditLogs          AuditLog[]
 }
@@ -208,4 +209,83 @@ model SaleAgreement {
   notes         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+model BillOfSale {
+  id                  String              @id @default(uuid())
+  vehicleId           String              @unique
+  vehicle             Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  // Seller details
+  sellerFullName      String
+  sellerAddress       String?
+  sellerSuburb        String?
+  sellerState         String?
+  sellerPostcode      String?
+  sellerCustomerId    String?
+  sellerDob           String?
+  sellerPhone         String
+  sellerEmail         String
+  sellerLicenceNumber String?
+
+  // Vehicle details (snapshot at time of creation)
+  registrationNumber  String
+  stateOfRegistration String?
+  vinNumber           String
+  engineNumber        String?
+  yearOfManufacture   Int
+  vehicleMake         String
+  vehicleModel        String
+  vehicleVariant      String?
+  bodyType            String?
+  colour              String?
+  fuelType            String?
+  transmission        String?
+  odometerReading     Int
+  numberOfKeys        String?
+
+  // Sale details
+  purchasePrice       Float
+  depositPaid         Float              @default(0)
+  balanceDue          Float
+  paymentMethod       String?
+  dateOfSale          DateTime           @default(now())
+
+  // Vehicle condition
+  knownDefects        String?
+
+  // Status & signing
+  status              String             @default("DRAFT")
+  signingToken        String?            @unique
+  tokenExpiresAt      DateTime?
+  sentAt              DateTime?
+  sentById            String?
+  viewedAt            DateTime?
+
+  // Seller signature
+  signedAt            DateTime?
+  signerName          String?
+  signerIp            String?
+  signerUserAgent     String?
+  signatureData       String?
+
+  // PDF
+  pdfStoragePath      String?
+
+  notes               String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  events              BillOfSaleEvent[]
+}
+
+model BillOfSaleEvent {
+  id           String     @id @default(uuid())
+  billOfSaleId String
+  billOfSale   BillOfSale @relation(fields: [billOfSaleId], references: [id], onDelete: Cascade)
+  action       String
+  details      Json?
+  ipAddress    String?
+  userAgent    String?
+  userId       String?
+  createdAt    DateTime   @default(now())
 }

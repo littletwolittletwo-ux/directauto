@@ -326,6 +326,136 @@ export async function sendApprovalConfirmation({
   })
 }
 
+export async function sendBillOfSaleEmail({
+  to,
+  sellerName,
+  year,
+  make,
+  model,
+  purchasePrice,
+  signingLink,
+  dealershipName,
+  contactEmail,
+}: {
+  to: string
+  sellerName: string
+  year: number
+  make: string
+  model: string
+  purchasePrice: number
+  signingLink: string
+  dealershipName: string
+  contactEmail?: string
+}) {
+  const transporter = getTransporter()
+
+  if (!transporter) {
+    console.log('[MAILER] Bill of Sale email (SMTP not configured):', { to, signingLink })
+    return
+  }
+
+  const formattedPrice = purchasePrice.toLocaleString('en-AU', { minimumFractionDigits: 2 })
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to,
+    subject: `Bill of Sale — ${year} ${make} ${model} | ${dealershipName}`,
+    html: `
+      <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+        ${emailHeader(dealershipName)}
+        <div style="padding: 32px; background: white;">
+          <h2 style="color: #1e293b;">Bill of Sale</h2>
+          <p>Hi ${sellerName},</p>
+          <p style="color: #475569;">Please review and sign the Bill of Sale for the <strong>${year} ${make} ${model}</strong>.</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 0; color: #64748b;">Vehicle</td>
+              <td style="padding: 8px 0; font-weight: 600;">${year} ${make} ${model}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 0; color: #64748b;">Purchase Price</td>
+              <td style="padding: 8px 0; font-weight: 600;">AUD $${formattedPrice}</td>
+            </tr>
+          </table>
+          <div style="margin: 24px 0; text-align: center;">
+            <a href="${signingLink}" style="background: #1e40af; color: white; padding: 14px 40px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Review & Sign Document</a>
+          </div>
+          <p style="color: #94a3b8; font-size: 12px;">This link will expire in 7 days. If you have any questions, please contact us.</p>
+        </div>
+        ${emailFooter(contactEmail)}
+      </div>
+    `,
+  })
+}
+
+export async function sendBillOfSaleConfirmation({
+  to,
+  sellerName,
+  year,
+  make,
+  model,
+  purchasePrice,
+  dealershipName,
+  contactEmail,
+  pdfBuffer,
+  pdfFilename,
+}: {
+  to: string
+  sellerName: string
+  year: number
+  make: string
+  model: string
+  purchasePrice: number
+  dealershipName: string
+  contactEmail?: string
+  pdfBuffer: Buffer
+  pdfFilename: string
+}) {
+  const transporter = getTransporter()
+
+  if (!transporter) {
+    console.log('[MAILER] Bill of Sale confirmation (SMTP not configured):', { to, pdfFilename })
+    return
+  }
+
+  const formattedPrice = purchasePrice.toLocaleString('en-AU', { minimumFractionDigits: 2 })
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to,
+    subject: `Bill of Sale Signed — ${year} ${make} ${model} | ${dealershipName}`,
+    html: `
+      <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+        ${emailHeader(dealershipName)}
+        <div style="padding: 32px; background: white;">
+          <h2 style="color: #16a34a;">Bill of Sale — Signed Successfully</h2>
+          <p>Hi ${sellerName},</p>
+          <p style="color: #475569;">Thank you for signing the Bill of Sale for the <strong>${year} ${make} ${model}</strong>. A copy of the signed document is attached for your records.</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 0; color: #64748b;">Vehicle</td>
+              <td style="padding: 8px 0; font-weight: 600;">${year} ${make} ${model}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 0; color: #64748b;">Purchase Price</td>
+              <td style="padding: 8px 0; font-weight: 600;">AUD $${formattedPrice}</td>
+            </tr>
+          </table>
+          <p style="color: #475569;">The Direct Auto team will be in touch to arrange payment and vehicle handover.</p>
+        </div>
+        ${emailFooter(contactEmail)}
+      </div>
+    `,
+    attachments: [
+      {
+        filename: pdfFilename,
+        content: pdfBuffer,
+        contentType: 'application/pdf',
+      },
+    ],
+  })
+}
+
 export async function sendSellerMoreInfoRequest({
   to,
   sellerName,

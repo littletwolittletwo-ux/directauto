@@ -47,7 +47,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (!vehicle.purchasePrice) {
       warnings.push('Purchase price not set')
     }
-    if (vehicle.docusignStatus !== 'SENT' && vehicle.docusignStatus !== 'SIGNED') {
+    // Check for bill of sale (in-app)
+    const billOfSale = await prisma.billOfSale.findUnique({ where: { vehicleId: id } })
+    if (!billOfSale || (billOfSale.status !== 'SENT' && billOfSale.status !== 'VIEWED' && billOfSale.status !== 'SIGNED')) {
       warnings.push('Bill of Sale not yet sent')
     }
     if (warnings.length > 0) {

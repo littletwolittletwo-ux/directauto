@@ -57,6 +57,7 @@ import { DocumentUploader } from "@/components/documents/DocumentUploader"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { SaleAgreementPanel } from "@/components/admin/SaleAgreementPanel"
+import { BillOfSalePanel } from "@/components/admin/BillOfSalePanel"
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -198,9 +199,6 @@ export default function VehicleDetailPage() {
   const [inspNotes, setInspNotes] = useState("")
   const [savingInspection, setSavingInspection] = useState(false)
 
-  // DocuSign state
-  const [sendingDocusign, setSendingDocusign] = useState(false)
-
   // Purchase price state
   const [editPurchasePrice, setEditPurchasePrice] = useState("")
 
@@ -239,7 +237,7 @@ export default function VehicleDetailPage() {
         ppsr: !!data.ppsrCheck,
         inspection: !!(data.inspectedAt || data.documents?.some((d: any) => d.category === "INSPECTION_REPORT")),
         purchasePrice: !!data.purchasePrice,
-        billOfSale: data.docusignStatus === "SENT" || data.docusignStatus === "SIGNED",
+        billOfSale: !!data.purchasePrice,
       })
 
       // Initialize PPSR form from existing data
@@ -503,41 +501,6 @@ export default function VehicleDetailPage() {
       toast.error("Failed to save inspection")
     } finally {
       setSavingInspection(false)
-    }
-  }
-
-  async function handleSendDocuSign() {
-    if (!editPurchasePrice) {
-      toast.error("Set the purchase price before sending Bill of Sale")
-      return
-    }
-
-    // Save purchase price first
-    try {
-      await fetch(`/api/vehicles/${vehicleId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ purchasePrice: editPurchasePrice }),
-      })
-    } catch {
-      toast.error("Failed to save purchase price")
-      return
-    }
-
-    setSendingDocusign(true)
-    try {
-      const res = await fetch(`/api/vehicles/${vehicleId}/docusign`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to send DocuSign")
-      toast.success("Bill of Sale sent via DocuSign")
-      fetchVehicle()
-    } catch (err: any) {
-      toast.error(err.message || "Failed to send DocuSign")
-    } finally {
-      setSendingDocusign(false)
     }
   }
 
@@ -1686,73 +1649,22 @@ export default function VehicleDetailPage() {
             </CardContent>
           </Card>
 
-          {/* DocuSign Bill of Sale */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Bill of Sale (DocuSign)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Status:</span>
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium border",
-                    vehicle.docusignStatus === "SIGNED"
-                      ? "bg-green-50 text-green-700 border-green-200"
-                      : vehicle.docusignStatus === "SENT"
-                      ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                      : "bg-gray-50 text-gray-500 border-gray-200"
-                  )}
-                >
-                  {vehicle.docusignStatus}
-                </span>
-              </div>
-
-              {vehicle.docusignStatus === "NOT_SENT" && (
-                <Button
-                  className="w-full"
-                  size="sm"
-                  onClick={handleSendDocuSign}
-                  disabled={sendingDocusign || !editPurchasePrice}
-                >
-                  {sendingDocusign ? (
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Send className="mr-1.5 h-3.5 w-3.5" />
-                  )}
-                  {sendingDocusign ? "Sending..." : "Send Bill of Sale"}
-                </Button>
-              )}
-
-              {vehicle.docusignSignedAt && (
-                <p className="text-xs text-green-600">
-                  Signed: {format(new Date(vehicle.docusignSignedAt), "MMM d, yyyy 'at' h:mm a")}
-                </p>
-              )}
-
-              {vehicle.docusignStatus === "SIGNED" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => {
-                    const signedDoc = vehicle.documents.find(
-                      (d) => d.category === "bill-of-sale-signed"
-                    )
-                    if (signedDoc) {
-                      window.open(`/api/documents/${signedDoc.id}`, "_blank")
-                    }
-                  }}
-                >
-                  <Download className="mr-1.5 h-3.5 w-3.5" />
-                  Download Signed PDF
-                </Button>
-              )}
-            </CardContent>
-          </Card>
+          {/* Bill of Sale */}
+          <BillOfSalePanel
+            vehicleId={vehicleId}
+            vehicleInfo={{
+              sellerName: vehicle.sellerName,
+              sellerEmail: vehicle.sellerEmail,
+              sellerPhone: vehicle.sellerPhone,
+              purchasePrice: vehicle.purchasePrice,
+              year: vehicle.year,
+              make: vehicle.make,
+              model: vehicle.model,
+              vin: vehicle.vin,
+              registrationNumber: vehicle.registrationNumber,
+              odometer: vehicle.odometer,
+            }}
+          />
 
           {/* Accounts Approval */}
           {canApprovePay && (
@@ -1991,10 +1903,10 @@ export default function VehicleDetailPage() {
                   <Button
                     variant="outline"
                     className="w-full"
-                    onClick={() => window.open(`/api/vehicles/${vehicleId}/bill-of-sale`, '_blank')}
+                    onClick={() => window.open(`/api/vehicles/${vehicleId}/bill-of-sale-doc/download`, '_blank')}
                   >
                     <FileText className="mr-1.5 h-4 w-4" />
-                    Generate Bill of Sale
+                    Preview Bill of Sale PDF
                   </Button>
                 )}
 

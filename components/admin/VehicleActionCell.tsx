@@ -68,7 +68,7 @@ export function VehicleActionCell({ id, status }: { id: string; status: string }
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => window.open(`/api/vehicles/${id}/bill-of-sale`, "_blank")}
+          onClick={() => window.open(`/api/vehicles/${id}/bill-of-sale-doc/download`, "_blank")}
           title="Bill of Sale"
         >
           <FileText className="h-3.5 w-3.5" />
