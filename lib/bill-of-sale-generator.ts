@@ -136,7 +136,7 @@ export async function generateBillOfSaleHtml(vehicleId: string): Promise<string>
             </ol>
           </li>
 
-          <li>Seller hereby covenant to indemnify Buyer against any and all claims and demands, including any expenses and costs incurred by Buyer, by any other party in relation to the ownership of the vehicle.</li>
+          <li>Seller hereby covenants to indemnify Buyer against any and all claims and demands, including any expenses and costs incurred by Buyer, by any other party in relation to the ownership of the vehicle.</li>
 
           <li>Purchase price is ${escapeHtml(price)} All inclusive.</li>
         </ol>

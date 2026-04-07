@@ -406,7 +406,7 @@ function BillOfSaleDocument({ data }: { data: BillOfSalePdfData }) {
             "The vehicle is free of any encumbrances (or the Buyer has been made aware of any encumbrances) or adverse claims or interests whatsoever, whether legal, equitable or otherwise.",
             "The Seller will provide to the Buyer any and all duly executed documents or forms as are required in order to transfer title in the vehicle free of any encumbrances or adverse claims or interests whatsoever.",
             "The Seller hereby covenants to indemnify the Buyer against any and all claims and demands, including any expenses and costs incurred by the Buyer, by any other party in relation to the ownership of the vehicle.",
-            "Title to the vehicle does not pass to the Buyer until cleared funds have been received into the Buyer's nominated bank account.",
+            "Title to the vehicle does not pass to the Buyer until cleared funds have been received into the Seller's nominated bank account.",
             "The purchase price stated above is the full and final amount, all inclusive.",
             "The Seller confirms that all information provided in this Bill of Sale is true and correct to the best of their knowledge.",
             "This agreement is governed by the laws of the State of Victoria, Australia.",
