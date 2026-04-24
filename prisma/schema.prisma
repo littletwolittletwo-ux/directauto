@@ -394,6 +394,8 @@ model PPSRRecord {
   requestPayload      Json?
   responsePayload     Json?
   errorMessage        String?
+  dischargedAt        DateTime?
+  dischargedByUserId  String?
   createdByUserId     String
   createdAt           DateTime  @default(now())
 

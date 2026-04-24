@@ -8,7 +8,7 @@ import {
   AlertCircle,
   CheckCircle2,
   RefreshCcw,
-  Clock,
+  ShieldOff,
 } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -42,7 +42,9 @@ export function PPSRLodgePanel({ vehicleId, isApproved, vehicle }: PPSRLodgePane
   const [records, setRecords] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [lodging, setLodging] = useState(false)
+  const [discharging, setDischarging] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [showDischargeConfirm, setShowDischargeConfirm] = useState(false)
 
   const fetchRecords = useCallback(async () => {
     try {
@@ -82,9 +84,33 @@ export function PPSRLodgePanel({ vehicleId, isApproved, vehicle }: PPSRLodgePane
     }
   }
 
+  async function handleDischarge() {
+    if (!activeRecord) return
+    setDischarging(true)
+    setShowDischargeConfirm(false)
+    try {
+      const res = await fetch(
+        `/api/vehicles/${vehicleId}/ppsr/${activeRecord.id}/discharge`,
+        { method: "POST" }
+      )
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || "PPSR discharge failed")
+      }
+      toast.success("PPSR registration discharged")
+      setRecords((prev) =>
+        prev.map((r: any) => (r.id === activeRecord.id ? data : r))
+      )
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setDischarging(false)
+    }
+  }
+
   const activeRecord = records.find((r: any) => r.status === "active")
   const failedRecord = records.find((r: any) => r.status === "failed")
-  const latestRecord = records[0]
+  const dischargedRecord = records.find((r: any) => r.status === "discharged")
 
   return (
     <>
@@ -122,6 +148,49 @@ export function PPSRLodgePanel({ vehicleId, isApproved, vehicle }: PPSRLodgePane
               <p className="text-xs text-green-600">
                 Fee: ${(activeRecord.feeCents / 100).toFixed(2)}
               </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 w-full border-amber-300 text-amber-700 hover:bg-amber-50"
+                onClick={() => setShowDischargeConfirm(true)}
+                disabled={discharging}
+              >
+                {discharging ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ShieldOff className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {discharging ? "Discharging..." : "Lift PPSR"}
+              </Button>
+            </div>
+          ) : dischargedRecord && !activeRecord ? (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <div className="flex items-center gap-2">
+                  <ShieldOff className="h-4 w-4 text-amber-600" />
+                  <p className="text-sm font-medium text-amber-700">Discharged</p>
+                </div>
+                <p className="text-xs text-amber-600 mt-1">
+                  Reg: {dischargedRecord.registrationNumber}
+                </p>
+                {dischargedRecord.dischargedAt && (
+                  <p className="text-xs text-amber-600">
+                    Discharged: {format(new Date(dischargedRecord.dischargedAt), "MMM d, yyyy")}
+                  </p>
+                )}
+              </div>
+              <Button
+                className="w-full"
+                onClick={() => setShowConfirm(true)}
+                disabled={!isApproved || lodging}
+              >
+                {lodging ? (
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : (
+                  <Shield className="mr-1.5 h-4 w-4" />
+                )}
+                {lodging ? "Lodging..." : "Re-lodge PPSR"}
+              </Button>
             </div>
           ) : failedRecord && !activeRecord ? (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3">
@@ -167,7 +236,7 @@ export function PPSRLodgePanel({ vehicleId, isApproved, vehicle }: PPSRLodgePane
         </CardContent>
       </Card>
 
-      {/* Confirmation Dialog */}
+      {/* Lodge Confirmation Dialog */}
       <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -192,6 +261,41 @@ export function PPSRLodgePanel({ vehicleId, isApproved, vehicle }: PPSRLodgePane
             <Button onClick={handleLodge} disabled={lodging}>
               {lodging && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
               Confirm & Lodge
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Discharge Confirmation Dialog */}
+      <Dialog open={showDischargeConfirm} onOpenChange={setShowDischargeConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Lift PPSR Registration</DialogTitle>
+            <DialogDescription>
+              This will discharge the active PPSR registration. The security interest will be removed.
+            </DialogDescription>
+          </DialogHeader>
+          {activeRecord && (
+            <div className="rounded-lg bg-muted p-3 text-sm space-y-1">
+              <p><strong>Registration:</strong> {activeRecord.registrationNumber}</p>
+              <p><strong>Vehicle:</strong> {vehicle.year} {vehicle.make} {vehicle.model}</p>
+              <p><strong>VIN:</strong> {vehicle.vin}</p>
+              {activeRecord.lodgedAt && (
+                <p><strong>Lodged:</strong> {format(new Date(activeRecord.lodgedAt), "MMM d, yyyy")}</p>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button
+              variant="destructive"
+              onClick={handleDischarge}
+              disabled={discharging}
+            >
+              {discharging && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+              Confirm Discharge
             </Button>
           </DialogFooter>
         </DialogContent>

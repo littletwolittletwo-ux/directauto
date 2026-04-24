@@ -78,4 +78,32 @@ export async function getRegistration(registrationNumber: string) {
   }
 }
 
+export interface DischargeResult {
+  success: boolean
+  dischargedAt: Date
+  providerReference: string
+}
+
+/**
+ * Discharge (lift) an existing PPSR registration.
+ *
+ * In production, this calls the chosen PPSR provider to remove the registration.
+ * Currently returns a mock result for development.
+ */
+export async function discharge(registrationNumber: string): Promise<DischargeResult> {
+  if (!registrationNumber) {
+    throw new PPSRError('Registration number is required for discharge', false)
+  }
+
+  // --- Mock implementation (replace with real API call) ---
+  await new Promise((r) => setTimeout(r, 800))
+
+  return {
+    success: true,
+    dischargedAt: new Date(),
+    providerReference: `DISCHARGE-${Date.now()}`,
+  }
+  // --- End mock ---
+}
+
 export { PPSRError }

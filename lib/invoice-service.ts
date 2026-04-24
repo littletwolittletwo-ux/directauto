@@ -1,4 +1,6 @@
 import { prisma } from './prisma'
+export { generateInvoicePdf } from './invoice-pdf'
+export type { InvoicePdfData } from './invoice-pdf'
 import { requireApproved } from './approval'
 import { logAudit } from './audit'
 import { Prisma } from '@prisma/client'

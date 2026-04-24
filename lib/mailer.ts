@@ -456,6 +456,80 @@ export async function sendBillOfSaleConfirmation({
   })
 }
 
+export async function sendInvoiceEmail({
+  to,
+  buyerName,
+  invoiceNumber,
+  year,
+  make,
+  model,
+  totalCents,
+  dealershipName,
+  contactEmail,
+  pdfBuffer,
+  pdfFilename,
+}: {
+  to: string
+  buyerName: string
+  invoiceNumber: string
+  year: number
+  make: string
+  model: string
+  totalCents: number
+  dealershipName: string
+  contactEmail?: string
+  pdfBuffer: Buffer
+  pdfFilename: string
+}) {
+  const transporter = getTransporter()
+
+  if (!transporter) {
+    console.log('[MAILER] Invoice email (SMTP not configured):', { to, invoiceNumber, pdfFilename })
+    return
+  }
+
+  const formattedTotal = (totalCents / 100).toLocaleString('en-AU', { minimumFractionDigits: 2 })
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to,
+    subject: `Invoice ${invoiceNumber} — ${year} ${make} ${model} | ${dealershipName}`,
+    html: `
+      <div style="max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif;">
+        ${emailHeader(dealershipName)}
+        <div style="padding: 32px; background: white;">
+          <h2 style="color: #1e293b;">Tax Invoice</h2>
+          <p>Hi ${buyerName},</p>
+          <p style="color: #475569;">Please find attached your tax invoice for the <strong>${year} ${make} ${model}</strong>.</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 0; color: #64748b;">Invoice Number</td>
+              <td style="padding: 8px 0; font-weight: 600;">${invoiceNumber}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 0; color: #64748b;">Vehicle</td>
+              <td style="padding: 8px 0; font-weight: 600;">${year} ${make} ${model}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 0; color: #64748b;">Total (inc. GST)</td>
+              <td style="padding: 8px 0; font-weight: 600;">AUD $${formattedTotal}</td>
+            </tr>
+          </table>
+          <p style="color: #475569;">Payment is due within 7 days. If you have any questions, please don't hesitate to contact us.</p>
+        </div>
+        ${emailFooter(contactEmail)}
+      </div>
+    `,
+    attachments: [
+      {
+        filename: pdfFilename,
+        content: pdfBuffer,
+        contentType: 'application/pdf',
+      },
+    ],
+  })
+}
+
 export async function sendSellerMoreInfoRequest({
   to,
   sellerName,
