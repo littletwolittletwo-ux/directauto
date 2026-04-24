@@ -1,0 +1,88 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { Prisma } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
+import { logAudit } from '@/lib/audit'
+
+interface RouteParams {
+  params: Promise<{ id: string }>
+}
+
+export async function POST(request: NextRequest, { params }: RouteParams) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const userRole = (session.user as Record<string, unknown>).role as string
+    if (userRole !== 'ACCOUNTS' && userRole !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Only ACCOUNTS or ADMIN users can approve purchases.' },
+        { status: 403 }
+      )
+    }
+
+    const { id } = await params
+    const userId = (session.user as Record<string, unknown>).id as string
+
+    let body: { comment?: string } = {}
+    try {
+      body = await request.json()
+    } catch {
+      // No body is fine — comment is optional
+    }
+
+    const vehicle = await prisma.vehicle.findUnique({ where: { id } })
+    if (!vehicle) {
+      return NextResponse.json({ error: 'Vehicle not found.' }, { status: 404 })
+    }
+
+    const currentStatus = (vehicle as Record<string, unknown>).approvalStatus as string | undefined ?? 'PENDING'
+
+    // Idempotent: if already approved, return success
+    if (currentStatus === 'APPROVED') {
+      return NextResponse.json({ message: 'Already approved.', vehicle })
+    }
+
+    // Update vehicle approval status
+    const updated = await prisma.vehicle.update({
+      where: { id },
+      data: {
+        approvalStatus: 'APPROVED',
+        approvalComment: body.comment?.trim() || null,
+        accountsApprovedAt: new Date(),
+        accountsApprovedById: userId,
+      } as Record<string, unknown>,
+    })
+
+    // Write approval history
+    await prisma.approvalHistory.create({
+      data: {
+        vehicleId: id,
+        userId,
+        action: 'approved',
+        comment: body.comment?.trim() || null,
+      },
+    })
+
+    await logAudit({
+      vehicleId: id,
+      userId,
+      action: 'PURCHASE_APPROVED',
+      details: {
+        previousApprovalStatus: currentStatus,
+        comment: body.comment?.trim() || null,
+      } as Prisma.InputJsonValue,
+    })
+
+    return NextResponse.json({ vehicle: updated })
+  } catch (error) {
+    console.error('[APPROVAL_APPROVE] Error:', error)
+    return NextResponse.json(
+      { error: 'Failed to approve vehicle.' },
+      { status: 500 }
+    )
+  }
+}

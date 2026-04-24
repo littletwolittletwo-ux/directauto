@@ -23,6 +23,7 @@ import {
   ExternalLink,
   ClipboardCheck,
   DollarSign,
+  RotateCcw,
 } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -58,6 +59,10 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { SaleAgreementPanel } from "@/components/admin/SaleAgreementPanel"
 import { BillOfSalePanel } from "@/components/admin/BillOfSalePanel"
+import { ApprovalHistoryTimeline } from "@/components/admin/ApprovalHistoryTimeline"
+import { InvoicesPanel } from "@/components/admin/InvoicesPanel"
+import { ExpensesPanel } from "@/components/admin/ExpensesPanel"
+import { PPSRLodgePanel } from "@/components/admin/PPSRLodgePanel"
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -102,6 +107,8 @@ interface Vehicle {
   accountsApprovedAt: string | null
   accountsApprovedById: string | null
   easycarsSyncedAt: string | null
+  approvalStatus: string
+  approvalComment: string | null
   identity: {
     id: string
     fullLegalName: string
@@ -215,6 +222,14 @@ export default function VehicleDetailPage() {
     purchasePrice: false,
     billOfSale: false,
   })
+
+  // Purchase approval workflow state
+  const [showPurchaseApproveDialog, setShowPurchaseApproveDialog] = useState(false)
+  const [showPurchaseRejectDialog, setShowPurchaseRejectDialog] = useState(false)
+  const [purchaseApproveComment, setPurchaseApproveComment] = useState("")
+  const [purchaseRejectComment, setPurchaseRejectComment] = useState("")
+  const [purchaseProcessing, setPurchaseProcessing] = useState(false)
+  const [approvalHistoryKey, setApprovalHistoryKey] = useState(0)
 
 
   const fetchVehicle = useCallback(async () => {
@@ -545,8 +560,79 @@ export default function VehicleDetailPage() {
     }
   }
 
+  async function handlePurchaseApprove() {
+    setPurchaseProcessing(true)
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}/approval/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comment: purchaseApproveComment.trim() || undefined }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Approval failed")
+      }
+      toast.success("Purchase approved")
+      setShowPurchaseApproveDialog(false)
+      setPurchaseApproveComment("")
+      setApprovalHistoryKey((k) => k + 1)
+      fetchVehicle()
+    } catch (err: any) {
+      toast.error(err.message || "Approval failed")
+    } finally {
+      setPurchaseProcessing(false)
+    }
+  }
+
+  async function handlePurchaseReject() {
+    setPurchaseProcessing(true)
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}/approval/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comment: purchaseRejectComment.trim() || undefined }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Rejection failed")
+      }
+      toast.success("Purchase rejected")
+      setShowPurchaseRejectDialog(false)
+      setPurchaseRejectComment("")
+      setApprovalHistoryKey((k) => k + 1)
+      fetchVehicle()
+    } catch (err: any) {
+      toast.error(err.message || "Rejection failed")
+    } finally {
+      setPurchaseProcessing(false)
+    }
+  }
+
+  async function handlePurchaseResubmit() {
+    setPurchaseProcessing(true)
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}/approval/resubmit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Resubmission failed")
+      }
+      toast.success("Resubmitted for review")
+      setApprovalHistoryKey((k) => k + 1)
+      fetchVehicle()
+    } catch (err: any) {
+      toast.error(err.message || "Resubmission failed")
+    } finally {
+      setPurchaseProcessing(false)
+    }
+  }
+
   const isAccountsUser = session?.user?.role === "ACCOUNTS"
   const canApprovePay = isAdmin || isAccountsUser
+  const vehicleApprovalStatus = vehicle?.approvalStatus || "PENDING"
 
   if (loading) {
     return (
@@ -1513,6 +1599,34 @@ export default function VehicleDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Invoices */}
+          <InvoicesPanel
+            vehicleId={vehicleId}
+            isApproved={vehicleApprovalStatus === "APPROVED"}
+            vehicle={{
+              sellerName: vehicle.sellerName,
+              sellerEmail: vehicle.sellerEmail,
+              purchasePrice: vehicle.purchasePrice,
+            }}
+          />
+
+          {/* Expenses & Margin */}
+          <ExpensesPanel vehicleId={vehicleId} />
+
+          {/* PPSR Lodgement */}
+          <PPSRLodgePanel
+            vehicleId={vehicleId}
+            isApproved={vehicleApprovalStatus === "APPROVED"}
+            vehicle={{
+              vin: vehicle.vin,
+              registrationNumber: vehicle.registrationNumber,
+              make: vehicle.make,
+              model: vehicle.model,
+              year: vehicle.year,
+              sellerName: vehicle.sellerName,
+            }}
+          />
+
           {/* Recent audit logs inline */}
           <Card>
             <CardHeader>
@@ -1666,105 +1780,218 @@ export default function VehicleDetailPage() {
             }}
           />
 
-          {/* Accounts Approval */}
-          {canApprovePay && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Accounts Approval</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {vehicle.accountsApprovedAt ? (
-                  <div className="rounded-lg border border-green-200 bg-green-50 p-3">
-                    <p className="text-sm font-medium text-green-700">
-                      Approved & Paid
-                    </p>
+          {/* Purchase Approval Status */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Purchase Approval</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Status Banner */}
+              {vehicleApprovalStatus === "APPROVED" && (
+                <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+                  <p className="text-sm font-medium text-green-700">
+                    Purchase Approved
+                  </p>
+                  {vehicle.accountsApprovedAt && (
                     <p className="text-xs text-green-600">
                       {format(new Date(vehicle.accountsApprovedAt), "MMM d, yyyy 'at' h:mm a")}
                     </p>
-                    {vehicle.easycarsSyncedAt && (
-                      <p className="mt-1 text-xs text-green-600">
-                        Synced to EasyCars: {format(new Date(vehicle.easycarsSyncedAt), "MMM d, yyyy")}
-                      </p>
+                  )}
+                  {vehicle.easycarsSyncedAt && (
+                    <p className="mt-1 text-xs text-green-600">
+                      Synced to EasyCars: {format(new Date(vehicle.easycarsSyncedAt), "MMM d, yyyy")}
+                    </p>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 w-full"
+                    onClick={() =>
+                      window.open(`/api/vehicles/${vehicleId}/easycars`, "_blank")
+                    }
+                  >
+                    <Download className="mr-1.5 h-3.5 w-3.5" />
+                    Download EasyCars CSV
+                  </Button>
+                </div>
+              )}
+
+              {vehicleApprovalStatus === "REJECTED" && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                  <p className="text-sm font-medium text-red-700">
+                    Purchase Rejected
+                  </p>
+                  {vehicle.approvalComment && (
+                    <p className="mt-1 text-sm text-red-600 italic">
+                      &ldquo;{vehicle.approvalComment}&rdquo;
+                    </p>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 w-full border-amber-300 text-amber-700 hover:bg-amber-50"
+                    onClick={handlePurchaseResubmit}
+                    disabled={purchaseProcessing}
+                  >
+                    {purchaseProcessing ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
                     )}
+                    Resubmit for Review
+                  </Button>
+                </div>
+              )}
+
+              {vehicleApprovalStatus === "PENDING" && canApprovePay && (
+                <>
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-sm font-medium text-amber-700">
+                      Pending Approval
+                    </p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      Awaiting accounts review
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    {[
+                      { key: "ppsr" as const, label: "PPSR checked" },
+                      { key: "inspection" as const, label: "Inspection report uploaded" },
+                      { key: "purchasePrice" as const, label: "Purchase price confirmed" },
+                      { key: "billOfSale" as const, label: "Bill of Sale sent" },
+                    ].map(({ key, label }) => (
+                      <label
+                        key={key}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={approvalChecks[key]}
+                          onChange={(e) =>
+                            setApprovalChecks((prev) => ({
+                              ...prev,
+                              [key]: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 rounded border-gray-300"
+                        />
+                        <span className="text-sm">{label}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-2">
                     <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-2 w-full"
-                      onClick={() =>
-                        window.open(`/api/vehicles/${vehicleId}/easycars`, "_blank")
-                      }
+                      className="flex-1 bg-green-600 hover:bg-green-700"
+                      onClick={() => setShowPurchaseApproveDialog(true)}
+                      disabled={!Object.values(approvalChecks).every(Boolean)}
                     >
-                      <Download className="mr-1.5 h-3.5 w-3.5" />
-                      Download EasyCars CSV
+                      <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                      Approve
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      className="flex-1"
+                      onClick={() => setShowPurchaseRejectDialog(true)}
+                    >
+                      <XCircle className="mr-1.5 h-4 w-4" />
+                      Reject
                     </Button>
                   </div>
-                ) : (
-                  <>
-                    <div className="space-y-2">
-                      {[
-                        { key: "ppsr" as const, label: "PPSR checked" },
-                        { key: "inspection" as const, label: "Inspection report uploaded" },
-                        { key: "purchasePrice" as const, label: "Purchase price confirmed" },
-                        { key: "billOfSale" as const, label: "Bill of Sale sent" },
-                      ].map(({ key, label }) => (
-                        <label
-                          key={key}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={approvalChecks[key]}
-                            onChange={(e) =>
-                              setApprovalChecks((prev) => ({
-                                ...prev,
-                                [key]: e.target.checked,
-                              }))
-                            }
-                            className="h-4 w-4 rounded border-gray-300"
-                          />
-                          <span className="text-sm">{label}</span>
-                        </label>
-                      ))}
-                    </div>
+                </>
+              )}
 
-                    {!Object.values(approvalChecks).every(Boolean) && (
-                      <p className="text-xs text-amber-600 mt-1">
-                        {Object.entries(approvalChecks)
-                          .filter(([, v]) => !v)
-                          .map(([k]) => {
-                            const labels: Record<string, string> = {
-                              ppsr: "PPSR check",
-                              inspection: "Inspection report",
-                              purchasePrice: "Purchase price",
-                              billOfSale: "Bill of Sale",
-                            }
-                            return labels[k] || k
-                          })
-                          .join(", ")}{" "}
-                        not yet complete
-                      </p>
-                    )}
+              {vehicleApprovalStatus === "PENDING" && !canApprovePay && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-sm font-medium text-amber-700">
+                    Pending Approval
+                  </p>
+                  <p className="text-xs text-amber-600 mt-0.5">
+                    Awaiting review by the accounts team
+                  </p>
+                </div>
+              )}
 
-                    <Button
-                      className="w-full bg-green-600 hover:bg-green-700"
-                      onClick={handleApprovePay}
-                      disabled={
-                        approving ||
-                        !Object.values(approvalChecks).every(Boolean)
-                      }
-                    >
-                      {approving ? (
-                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="mr-1.5 h-4 w-4" />
-                      )}
-                      {approving ? "Processing..." : "Approve & Pay"}
-                    </Button>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          )}
+              {/* Approval History */}
+              <Separator />
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Approval History
+              </p>
+              <ApprovalHistoryTimeline key={approvalHistoryKey} vehicleId={vehicleId} />
+            </CardContent>
+          </Card>
+
+          {/* Purchase Approve Dialog */}
+          <Dialog open={showPurchaseApproveDialog} onOpenChange={setShowPurchaseApproveDialog}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Approve Purchase</DialogTitle>
+                <DialogDescription>
+                  Approve the purchase of {vehicle.year} {vehicle.make} {vehicle.model}
+                  {vehicle.purchasePrice ? ` for $${Number(vehicle.purchasePrice).toLocaleString()}` : ""}?
+                </DialogDescription>
+              </DialogHeader>
+              <Textarea
+                placeholder="Optional comment..."
+                value={purchaseApproveComment}
+                onChange={(e) => setPurchaseApproveComment(e.target.value)}
+                className="min-h-[60px]"
+              />
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={handlePurchaseApprove}
+                  disabled={purchaseProcessing}
+                >
+                  {purchaseProcessing ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                  )}
+                  Approve
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Purchase Reject Dialog */}
+          <Dialog open={showPurchaseRejectDialog} onOpenChange={setShowPurchaseRejectDialog}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Reject Purchase</DialogTitle>
+                <DialogDescription>
+                  Please provide a reason for rejecting this purchase.
+                </DialogDescription>
+              </DialogHeader>
+              <Textarea
+                placeholder="Reason for rejection..."
+                value={purchaseRejectComment}
+                onChange={(e) => setPurchaseRejectComment(e.target.value)}
+                className="min-h-[80px]"
+              />
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button
+                  variant="destructive"
+                  onClick={handlePurchaseReject}
+                  disabled={purchaseProcessing}
+                >
+                  {purchaseProcessing ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <XCircle className="mr-1.5 h-4 w-4" />
+                  )}
+                  Reject
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Admin notes */}
           <Card>

@@ -14,6 +14,9 @@ import {
   ChevronLeft,
   ChevronRight,
   SearchCheck,
+  ClipboardCheck,
+  Package,
+  BarChart3,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -35,12 +38,16 @@ interface NavItem {
   href: string
   icon: React.ElementType
   adminOnly?: boolean
+  accountsOnly?: boolean
 }
 
 const navItems: NavItem[] = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { label: "Acquire Vehicle", href: "/admin/acquire", icon: SearchCheck },
+  { label: "Approvals", href: "/admin/approvals", icon: ClipboardCheck, accountsOnly: true },
   { label: "Vehicles", href: "/admin/vehicles", icon: Car },
+  { label: "Stock", href: "/admin/stock", icon: Package },
+  { label: "Reports", href: "/admin/reports/pnl", icon: BarChart3 },
   { label: "Documents", href: "/admin/documents", icon: FileText },
   { label: "Audit Log", href: "/admin/audit", icon: Clock },
   { label: "Settings", href: "/admin/settings", icon: Settings, adminOnly: true },
@@ -129,9 +136,11 @@ export function Sidebar({
 
   const userRole = session?.user?.role
 
-  const filteredItems = navItems.filter(
-    (item) => !item.adminOnly || userRole === "ADMIN"
-  )
+  const filteredItems = navItems.filter((item) => {
+    if (item.adminOnly && userRole !== "ADMIN") return false
+    if (item.accountsOnly && userRole !== "ACCOUNTS" && userRole !== "ADMIN") return false
+    return true
+  })
 
   const isActive = (href: string) => {
     if (href === "/admin") {

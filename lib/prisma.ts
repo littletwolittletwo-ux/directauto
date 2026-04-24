@@ -24,6 +24,8 @@ const NEW_VEHICLE_FIELDS = new Set([
   'docusignEnvelopeId', 'docusignStatus', 'docusignSignedAt',
   'purchasePrice', 'offerPrice',
   'accountsApprovedAt', 'accountsApprovedById', 'easycarsSyncedAt',
+  'approvalStatus', 'approvalComment',
+  'stockStatus',
 ])
 
 const NEW_FIELD_DEFAULTS: Record<string, unknown> = {
@@ -46,6 +48,9 @@ const NEW_FIELD_DEFAULTS: Record<string, unknown> = {
   accountsApprovedAt: null,
   accountsApprovedById: null,
   easycarsSyncedAt: null,
+  approvalStatus: 'PENDING',
+  approvalComment: null,
+  stockStatus: 'AWAITING_DELIVERY',
 }
 
 // Base columns guaranteed to exist in the Vehicle table

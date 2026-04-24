@@ -19,6 +19,7 @@ model User {
   updatedAt    DateTime   @updatedAt
   vehicles     Vehicle[]  @relation("CreatedBy")
   auditLogs    AuditLog[]
+  approvalHistory ApprovalHistory[]
 }
 
 enum Role {
@@ -72,6 +73,9 @@ model Vehicle {
   accountsApprovedAt   DateTime?
   accountsApprovedById String?
   easycarsSyncedAt     DateTime?
+  approvalStatus       ApprovalStatus @default(PENDING)
+  approvalComment      String?
+  stockStatus          StockStatus    @default(AWAITING_DELIVERY)
   createdById        String?
   createdBy          User?         @relation("CreatedBy", fields: [createdById], references: [id])
   identity           SellerIdentity?
@@ -81,6 +85,10 @@ model Vehicle {
   billOfSale         BillOfSale?
   documents          Document[]
   auditLogs          AuditLog[]
+  approvalHistory    ApprovalHistory[]
+  invoices           ApplicationInvoice[]
+  expenses           ApplicationExpense[]
+  ppsrRecords        PPSRRecord[]
 }
 
 enum Source {
@@ -95,6 +103,19 @@ enum VehicleStatus {
   RISK_FLAGGED
   APPROVED
   REJECTED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum StockStatus {
+  AWAITING_DELIVERY
+  IN_STOCK
+  SOLD
+  WITHDRAWN
 }
 
 model SellerIdentity {
@@ -288,4 +309,93 @@ model BillOfSaleEvent {
   userAgent    String?
   userId       String?
   createdAt    DateTime   @default(now())
+}
+
+model ApprovalHistory {
+  id            String   @id @default(uuid())
+  vehicleId     String
+  vehicle       Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action        String   // submitted, approved, rejected, resubmitted
+  comment       String?
+  createdAt     DateTime @default(now())
+
+  @@index([vehicleId])
+}
+
+model ApplicationInvoice {
+  id                String   @id @default(uuid())
+  vehicleId         String
+  vehicle           Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  invoiceNumber     String   @unique
+  buyerName         String
+  buyerEmail        String
+  buyerAddress      String?
+  vehicleDescription String
+  subtotalCents     Int
+  gstCents          Int
+  totalCents        Int
+  pdfUrl            String?
+  sentAt            DateTime?
+  sentToEmail       String?
+  createdByUserId   String
+  createdAt         DateTime @default(now())
+
+  @@index([vehicleId])
+  @@index([createdAt])
+}
+
+model InvoiceSequence {
+  id      String @id @default("singleton")
+  lastNum Int    @default(0)
+}
+
+model ExpenseCategory {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  expenses  ApplicationExpense[]
+}
+
+model ApplicationExpense {
+  id              String          @id @default(uuid())
+  vehicleId       String
+  vehicle         Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  categoryId      String
+  category        ExpenseCategory @relation(fields: [categoryId], references: [id])
+  amountCents     Int
+  expenseDate     DateTime
+  supplier        String?
+  notes           String?
+  receiptFileUrl  String?
+  source          String          @default("manual") // manual, ppsr_auto, invoice_auto
+  createdByUserId String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([vehicleId])
+  @@index([expenseDate])
+}
+
+model PPSRRecord {
+  id                  String    @id @default(uuid())
+  vehicleId           String
+  vehicle             Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  registrationNumber  String?
+  lodgedAt            DateTime?
+  expiresAt           DateTime?
+  status              String    @default("pending") // pending, active, expired, failed, discharged
+  feeCents            Int       @default(0)
+  provider            String?
+  providerReference   String?
+  requestPayload      Json?
+  responsePayload     Json?
+  errorMessage        String?
+  createdByUserId     String
+  createdAt           DateTime  @default(now())
+
+  @@index([vehicleId])
 }
