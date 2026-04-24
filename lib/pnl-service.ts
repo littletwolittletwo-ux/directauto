@@ -18,7 +18,10 @@ export interface PnLResult {
     vehicleId: string
     vehicleDescription: string
     revenueCents: number
+    gstCents: number
+    totalInvoiceCents: number
     costCents: number
+    costBreakdown: { categoryName: string; amountCents: number }[]
     marginCents: number
     marginPercent: number | null
   }[]
@@ -36,6 +39,8 @@ export async function calculatePnL(dateFrom: string, dateTo: string): Promise<Pn
         vehicleId: true,
         vehicleDescription: true,
         subtotalCents: true,
+        gstCents: true,
+        totalCents: true,
         createdAt: true,
       },
     }),
@@ -73,18 +78,26 @@ export async function calculatePnL(dateFrom: string, dateTo: string): Promise<Pn
   }
 
   // Per-vehicle breakdown
-  const vehicleRevenue = new Map<string, { desc: string; cents: number }>()
+  const vehicleRevenue = new Map<string, { desc: string; subtotalCents: number; gstCents: number; totalCents: number }>()
   for (const inv of invoices) {
     const existing = vehicleRevenue.get(inv.vehicleId)
     vehicleRevenue.set(inv.vehicleId, {
       desc: inv.vehicleDescription,
-      cents: (existing?.cents || 0) + inv.subtotalCents,
+      subtotalCents: (existing?.subtotalCents || 0) + inv.subtotalCents,
+      gstCents: (existing?.gstCents || 0) + inv.gstCents,
+      totalCents: (existing?.totalCents || 0) + inv.totalCents,
     })
   }
 
   const vehicleCosts = new Map<string, number>()
+  const vehicleCostBreakdown = new Map<string, Map<string, number>>()
   for (const exp of expenses) {
     vehicleCosts.set(exp.vehicleId, (vehicleCosts.get(exp.vehicleId) || 0) + exp.amountCents)
+    if (!vehicleCostBreakdown.has(exp.vehicleId)) {
+      vehicleCostBreakdown.set(exp.vehicleId, new Map())
+    }
+    const catMap = vehicleCostBreakdown.get(exp.vehicleId)!
+    catMap.set(exp.category.name, (catMap.get(exp.category.name) || 0) + exp.amountCents)
   }
 
   // Merge vehicle IDs
@@ -92,16 +105,28 @@ export async function calculatePnL(dateFrom: string, dateTo: string): Promise<Pn
 
   const perVehicle = Array.from(allVehicleIds).map((vid) => {
     const rev = vehicleRevenue.get(vid)
-    const revCents = rev?.cents || 0
+    const revCents = rev?.subtotalCents || 0
+    const gstCents = rev?.gstCents || 0
+    const totalInvoiceCents = rev?.totalCents || 0
     const costCents = vehicleCosts.get(vid) || 0
     const marginCents = revCents - costCents
     const marginPercent = revCents > 0 ? Math.round((marginCents / revCents) * 1000) / 10 : null
+
+    const catMap = vehicleCostBreakdown.get(vid)
+    const costBreakdown = catMap
+      ? Array.from(catMap.entries())
+          .map(([categoryName, amountCents]) => ({ categoryName, amountCents }))
+          .sort((a, b) => b.amountCents - a.amountCents)
+      : []
 
     return {
       vehicleId: vid,
       vehicleDescription: rev?.desc || 'Unknown Vehicle',
       revenueCents: revCents,
+      gstCents,
+      totalInvoiceCents,
       costCents,
+      costBreakdown,
       marginCents,
       marginPercent,
     }

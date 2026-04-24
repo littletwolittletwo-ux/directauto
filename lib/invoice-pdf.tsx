@@ -286,7 +286,9 @@ function InvoiceDocument({ data }: { data: InvoicePdfData }) {
           <Text style={styles.paymentTitle}>Payment Instructions</Text>
           <Text style={styles.paymentLine}>Please make payment via bank transfer to:</Text>
           <Text style={styles.paymentLine}>Account Name: Stateline Holdings Pty Ltd</Text>
-          <Text style={styles.paymentLine}>BSB: Contact us for details</Text>
+          <Text style={styles.paymentLine}>BSB: 033-072</Text>
+          <Text style={styles.paymentLine}>Account Number: 538513</Text>
+          <Text style={styles.paymentLine}>Bank: Westpac</Text>
           <Text style={styles.paymentLine}>Reference: {data.invoiceNumber}</Text>
           <Text style={[styles.paymentLine, { marginTop: 6 }]}>
             Payment is due within 7 days of invoice date.
