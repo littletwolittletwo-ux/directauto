@@ -5,6 +5,8 @@
  * Search endpoint: POST {baseUrl}/api/b2b/Middleware/afsa-submit-mv-search
  */
 
+import { redact } from './log-redact'
+
 export interface PPSRSearchResult {
   isWrittenOff: boolean
   isStolen: boolean
@@ -72,9 +74,7 @@ async function getAccessToken(baseUrl: string, clientId: string, clientSecret: s
   for (const path of TOKEN_PATHS) {
     const tokenUrl = `${baseUrl}${path}`
 
-    console.log('[PPSR] ── Token Request ──')
-    console.log('[PPSR] URL:', tokenUrl)
-    console.log('[PPSR] Content-Type: application/x-www-form-urlencoded')
+    console.log('[PPSR] Token request to', path)
 
     try {
       const response = await fetch(tokenUrl, {
@@ -85,16 +85,14 @@ async function getAccessToken(baseUrl: string, clientId: string, clientSecret: s
 
       const responseText = await response.text()
 
-      console.log('[PPSR] ── Token Response ──')
-      console.log('[PPSR] Status:', response.status, response.statusText)
-      console.log('[PPSR] Body:', responseText.slice(0, 500))
+      console.log('[PPSR] Token response:', response.status, response.statusText, `(${responseText.length} bytes)`)
 
       if (!response.ok) {
         console.log(`[PPSR] ${path} failed with ${response.status}, trying next...`)
         continue
       }
 
-      let data: { access_token: string }
+      let data: { access_token: string; expires_in?: number }
       try {
         data = JSON.parse(responseText)
       } catch {
@@ -107,7 +105,7 @@ async function getAccessToken(baseUrl: string, clientId: string, clientSecret: s
         continue
       }
 
-      console.log('[PPSR] Token obtained from', path, '(length:', data.access_token.length, ')')
+      console.log('[PPSR] Token obtained from', path, data.expires_in ? `(expires in ${data.expires_in}s)` : '')
       return data.access_token
     } catch (err) {
       console.error(`[PPSR] ${path} network error:`, err instanceof Error ? err.message : String(err))
@@ -128,11 +126,7 @@ export async function searchByVIN(vin: string): Promise<PPSRSearchResult> {
   const url = `${baseUrl}/api/b2b/Middleware/afsa-submit-mv-search`
   const requestBody = { vin }
 
-  console.log('[PPSR] ── Search Request ──')
-  console.log('[PPSR] URL:', url)
-  console.log('[PPSR] Method: POST')
-  console.log('[PPSR] Authorization: Bearer', accessToken.slice(0, 10) + '...')
-  console.log('[PPSR] Body:', JSON.stringify(requestBody))
+  console.log('[PPSR] Search request: POST', url, 'VIN:', vin)
 
   const startTime = Date.now()
 
@@ -148,13 +142,12 @@ export async function searchByVIN(vin: string): Promise<PPSRSearchResult> {
   const elapsed = Date.now() - startTime
   const responseText = await response.text()
 
-  console.log('[PPSR] ── Search Response ──')
-  console.log('[PPSR] Status:', response.status, response.statusText)
-  console.log('[PPSR] Elapsed:', elapsed, 'ms')
+  console.log('[PPSR] Search response:', response.status, response.statusText, `(${elapsed}ms, ${responseText.length} bytes)`)
+
+  // Log redacted response headers for debugging
   const responseHeaders: Record<string, string> = {}
   response.headers.forEach((value, key) => { responseHeaders[key] = value })
-  console.log('[PPSR] Headers:', JSON.stringify(responseHeaders))
-  console.log('[PPSR] Body:', responseText.slice(0, 1000))
+  console.log('[PPSR] Response headers:', JSON.stringify(redact(responseHeaders)))
 
   if (!response.ok) {
     throw new Error(
@@ -168,6 +161,9 @@ export async function searchByVIN(vin: string): Promise<PPSRSearchResult> {
   } catch {
     throw new Error(`PPSR Cloud returned invalid JSON: ${responseText.slice(0, 500)}`)
   }
+
+  // Log redacted response body for debugging
+  console.log('[PPSR] Response body:', JSON.stringify(redact(data)))
 
   if (data.hasError || !data.resource) {
     const errorMsg =
