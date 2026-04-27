@@ -239,7 +239,7 @@ export function mapPpsrFault(faultXml: string): PpsrError {
   const errorNumber = errorNumberMatch ? parseInt(errorNumberMatch[1], 10) : null
 
   // Extract error message
-  const faultStringMatch = faultXml.match(/<faultstring>(.*?)<\/faultstring>/s)
+  const faultStringMatch = faultXml.match(/<faultstring>([\s\S]*?)<\/faultstring>/)
   const errorMessageMatch = faultXml.match(/<[^:]*ErrorMessage[^>]*>(.*?)</)
   const message = errorMessageMatch?.[1] || faultStringMatch?.[1] || 'Unknown PPSR error'
 

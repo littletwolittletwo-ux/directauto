@@ -177,7 +177,7 @@ async function main() {
       console.error('[PPSR-PWD] Check the response body above for details.')
       // Log redacted version for structured parsing
       if (response.body.includes('Fault')) {
-        const faultMatch = response.body.match(/<faultstring>(.*?)<\/faultstring>/s)
+        const faultMatch = response.body.match(/<faultstring>([\s\S]*?)<\/faultstring>/)
         if (faultMatch) {
           console.error('[PPSR-PWD] Fault string:', faultMatch[1])
         }

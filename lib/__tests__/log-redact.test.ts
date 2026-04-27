@@ -75,7 +75,7 @@ describe('redact', () => {
     }
     const result = redact(input)
     for (const key of Object.keys(input)) {
-      expect(result[key]).toBe('[REDACTED]')
+      expect((result as Record<string, unknown>)[key]).toBe('[REDACTED]')
     }
   })
 
