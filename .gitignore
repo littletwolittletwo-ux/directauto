@@ -38,3 +38,6 @@ next-env.d.ts
 # uploads
 uploads/
 config.bat
+
+# PPSR
+.ppsr-password-changed
