@@ -119,6 +119,8 @@ interface Vehicle {
     licenceFrontDocId: string | null
     licenceBackDocId: string | null
     selfieDocId: string | null
+    regoCertDocId: string | null
+    bankStatementDocId: string | null
     verifiedAt: string | null
     verifiedById: string | null
   } | null
@@ -681,6 +683,12 @@ export default function VehicleDetailPage() {
   const selfieDoc = vehicle.documents.find(
     (d) => d.id === vehicle.identity?.selfieDocId
   )
+  const regoCertDoc = vehicle.documents.find(
+    (d) => d.id === vehicle.identity?.regoCertDocId
+  )
+  const bankStatementDoc = vehicle.documents.find(
+    (d) => d.id === vehicle.identity?.bankStatementDocId
+  )
   const ownershipDocs = vehicle.documents.filter(
     (d) => d.category === "ownership"
   )
@@ -972,6 +980,44 @@ export default function VehicleDetailPage() {
                           originalName={selfieDoc.originalName}
                           mimeType={selfieDoc.mimeType}
                         />
+                      </div>
+                    )}
+                    {regoCertDoc ? (
+                      <div className="space-y-1">
+                        <p className="text-[11px] text-muted-foreground">
+                          Rego Certificate
+                        </p>
+                        <DocumentPreview
+                          documentId={regoCertDoc.id}
+                          originalName={regoCertDoc.originalName}
+                          mimeType={regoCertDoc.mimeType}
+                        />
+                      </div>
+                    ) : vehicle.identity && (
+                      <div className="space-y-1">
+                        <p className="text-[11px] text-muted-foreground">
+                          Rego Certificate
+                        </p>
+                        <p className="text-xs text-muted-foreground italic">Not provided</p>
+                      </div>
+                    )}
+                    {bankStatementDoc ? (
+                      <div className="space-y-1">
+                        <p className="text-[11px] text-muted-foreground">
+                          Bank Statement
+                        </p>
+                        <DocumentPreview
+                          documentId={bankStatementDoc.id}
+                          originalName={bankStatementDoc.originalName}
+                          mimeType={bankStatementDoc.mimeType}
+                        />
+                      </div>
+                    ) : vehicle.identity && (
+                      <div className="space-y-1">
+                        <p className="text-[11px] text-muted-foreground">
+                          Bank Statement
+                        </p>
+                        <p className="text-xs text-muted-foreground italic">Not provided</p>
                       </div>
                     )}
                   </div>

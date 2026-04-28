@@ -36,6 +36,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   licence_front: "Licence Front",
   licence_back: "Licence Back",
   selfie: "Selfie",
+  "rego-cert": "Rego Certificate",
+  "bank-statement": "Bank Statement",
   ownership: "Ownership Document",
   ppsr_certificate: "PPSR Certificate",
   other: "Other",

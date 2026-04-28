@@ -46,6 +46,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   licence_front: "Licence Front",
   licence_back: "Licence Back",
   selfie: "Selfie",
+  "rego-cert": "Rego Certificate",
+  "bank-statement": "Bank Statement",
   ownership: "Ownership",
   ppsr_certificate: "PPSR Certificate",
   other: "Other",
@@ -150,6 +152,8 @@ export default function DocumentVaultPage() {
             <SelectItem value="licence_front">Licence Front</SelectItem>
             <SelectItem value="licence_back">Licence Back</SelectItem>
             <SelectItem value="selfie">Selfie</SelectItem>
+            <SelectItem value="rego-cert">Rego Certificate</SelectItem>
+            <SelectItem value="bank-statement">Bank Statement</SelectItem>
             <SelectItem value="ownership">Ownership</SelectItem>
             <SelectItem value="ppsr_certificate">PPSR Certificate</SelectItem>
             <SelectItem value="other">Other</SelectItem>

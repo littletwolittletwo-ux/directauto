@@ -49,6 +49,8 @@ interface FormState {
   licenceFront: File | null;
   licenceBack: File | null;
   selfie: File | null;
+  regoCert: File | null;
+  bankStatement: File | null;
   // Step 4
   ownershipType: string;
   ownershipFiles: File[];
@@ -78,6 +80,8 @@ const defaultFormState: FormState = {
   licenceFront: null,
   licenceBack: null,
   selfie: null,
+  regoCert: null,
+  bankStatement: null,
   ownershipType: "",
   ownershipFiles: [],
   ownershipNotes: "",
@@ -218,7 +222,9 @@ export default function MultiStepForm({
         return !!(
           formData.licenceNumber.trim() &&
           formData.licenceState &&
-          formData.licenceExpiry
+          formData.licenceExpiry &&
+          formData.regoCert &&
+          formData.bankStatement
         );
       case 4:
         return !!(
@@ -250,6 +256,8 @@ export default function MultiStepForm({
       let licenceFrontPath = "";
       let licenceBackPath = "";
       let selfiePath = "";
+      let regoCertPath = "";
+      let bankStatementPath = "";
       let ownershipPaths: string[] = [];
 
       if (formData.licenceFront) {
@@ -260,6 +268,12 @@ export default function MultiStepForm({
       }
       if (formData.selfie) {
         selfiePath = await uploadFileToSupabase(formData.selfie, "selfie");
+      }
+      if (formData.regoCert) {
+        regoCertPath = await uploadFileToSupabase(formData.regoCert, "rego-cert");
+      }
+      if (formData.bankStatement) {
+        bankStatementPath = await uploadFileToSupabase(formData.bankStatement, "bank-statement");
       }
       if (formData.ownershipFiles.length > 0) {
         ownershipPaths = await uploadFilesToSupabase(formData.ownershipFiles, "ownership");
@@ -290,6 +304,8 @@ export default function MultiStepForm({
         licenceFrontPath,
         licenceBackPath,
         selfiePath,
+        regoCertPath,
+        bankStatementPath,
         ownershipPaths,
       };
 

@@ -79,6 +79,8 @@ export async function POST(request: NextRequest) {
     const licenceFrontPath = (body.licenceFrontPath || '').trim()
     const licenceBackPath = (body.licenceBackPath || '').trim()
     const selfiePath = (body.selfiePath || '').trim()
+    const regoCertPath = (body.regoCertPath || '').trim()
+    const bankStatementPath = (body.bankStatementPath || '').trim()
     const ownershipPaths: string[] = Array.isArray(body.ownershipPaths) ? body.ownershipPaths : []
 
     // Validate required fields
@@ -253,6 +255,8 @@ export async function POST(request: NextRequest) {
     let licenceFrontDocId: string | null = null
     let licenceBackDocId: string | null = null
     let selfieDocId: string | null = null
+    let regoCertDocId: string | null = null
+    let bankStatementDocId: string | null = null
 
     try {
       if (licenceFrontPath) {
@@ -263,6 +267,12 @@ export async function POST(request: NextRequest) {
       }
       if (selfiePath) {
         selfieDocId = await createDocFromPath(selfiePath, 'selfie', vehicle.id)
+      }
+      if (regoCertPath) {
+        regoCertDocId = await createDocFromPath(regoCertPath, 'rego-cert', vehicle.id)
+      }
+      if (bankStatementPath) {
+        bankStatementDocId = await createDocFromPath(bankStatementPath, 'bank-statement', vehicle.id)
       }
 
       // Create records for ownership files
@@ -277,7 +287,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update SellerIdentity with document IDs
-    if (licenceFrontDocId || licenceBackDocId || selfieDocId) {
+    if (licenceFrontDocId || licenceBackDocId || selfieDocId || regoCertDocId || bankStatementDocId) {
       try {
         await prisma.sellerIdentity.update({
           where: { vehicleId: vehicle.id },
@@ -285,6 +295,8 @@ export async function POST(request: NextRequest) {
             ...(licenceFrontDocId && { licenceFrontDocId }),
             ...(licenceBackDocId && { licenceBackDocId }),
             ...(selfieDocId && { selfieDocId }),
+            ...(regoCertDocId && { regoCertDocId }),
+            ...(bankStatementDocId && { bankStatementDocId }),
           },
         })
       } catch (docIdErr) {

@@ -130,6 +130,8 @@ model SellerIdentity {
   licenceFrontDocId    String?
   licenceBackDocId     String?
   selfieDocId          String?
+  regoCertDocId        String?
+  bankStatementDocId   String?
   verifiedAt           DateTime?
   verifiedById         String?
 }

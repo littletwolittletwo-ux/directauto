@@ -32,6 +32,8 @@ interface Step3Props {
     licenceFront: File | null;
     licenceBack: File | null;
     selfie: File | null;
+    regoCert: File | null;
+    bankStatement: File | null;
   };
   onChange: (field: string, value: string) => void;
   onFileChange: (field: string, file: File | null) => void;
@@ -44,6 +46,7 @@ function FileUploadZone({
   onSelect,
   onRemove,
   fieldId,
+  accept = "image/*",
 }: {
   label: string;
   description: string;
@@ -51,6 +54,7 @@ function FileUploadZone({
   onSelect: (file: File) => void;
   onRemove: () => void;
   fieldId: string;
+  accept?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -124,17 +128,23 @@ function FileUploadZone({
     );
   }
 
-  if (file && preview) {
+  if (file && (preview || !file.type.startsWith("image/"))) {
     return (
       <div className="space-y-2">
         <Label className="text-sm font-medium">{label}</Label>
         <div className="relative rounded-lg border border-border bg-muted/30 p-3">
           <div className="flex items-center gap-3">
-            <img
-              src={preview}
-              alt={label}
-              className="h-16 w-16 rounded-md object-cover border border-border"
-            />
+            {preview ? (
+              <img
+                src={preview}
+                alt={label}
+                className="h-16 w-16 rounded-md object-cover border border-border"
+              />
+            ) : (
+              <div className="flex h-16 w-16 items-center justify-center rounded-md border border-border bg-muted text-xs text-muted-foreground font-medium">
+                PDF
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{file.name}</p>
               <p className="text-xs text-muted-foreground">
@@ -181,7 +191,7 @@ function FileUploadZone({
           ref={inputRef}
           id={fieldId}
           type="file"
-          accept="image/*"
+          accept={accept}
           className="sr-only"
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -303,6 +313,34 @@ export default function Step3Identity({
             onSelect={(f) => onFileChange("selfie", f)}
             onRemove={() => onFileChange("selfie", null)}
             fieldId="selfie"
+          />
+        </div>
+      </div>
+
+      <div className="border-t border-border pt-5 mt-5">
+        <p className="text-sm text-muted-foreground mb-4">
+          Please upload the following documents to verify vehicle ownership and your identity.
+        </p>
+
+        <div className="space-y-4">
+          <FileUploadZone
+            label="Registration Certificate"
+            description="Upload a photo or PDF of the vehicle's current registration certificate"
+            file={formData.regoCert}
+            onSelect={(f) => onFileChange("regoCert", f)}
+            onRemove={() => onFileChange("regoCert", null)}
+            fieldId="regoCert"
+            accept="image/*,application/pdf"
+          />
+
+          <FileUploadZone
+            label="Bank Statement (top portion)"
+            description="Upload the top of a recent bank statement showing your name and account details. You can cover the transactions."
+            file={formData.bankStatement}
+            onSelect={(f) => onFileChange("bankStatement", f)}
+            onRemove={() => onFileChange("bankStatement", null)}
+            fieldId="bankStatement"
+            accept="image/*,application/pdf"
           />
         </div>
       </div>
