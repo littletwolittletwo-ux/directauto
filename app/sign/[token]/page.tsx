@@ -324,6 +324,18 @@ export default function SigningPage() {
                 <span className="text-blue-600 mt-0.5">•</span>
                 Governed by Victorian law
               </li>
+              <li className="flex gap-2">
+                <span className="text-blue-600 mt-0.5">•</span>
+                Vehicle is exclusively reserved for Direct Auto Wholesale while this agreement is in effect
+              </li>
+              <li className="flex gap-2">
+                <span className="text-blue-600 mt-0.5">•</span>
+                Seller must make vehicle available for inspection and not alter or remove parts
+              </li>
+              <li className="flex gap-2">
+                <span className="text-blue-600 mt-0.5">•</span>
+                3 business day cooling-off period for the Buyer
+              </li>
             </ul>
           </InfoCard>
 
@@ -369,7 +381,11 @@ export default function SigningPage() {
             <p className="mb-2">2. The Seller warrants they are the legal owner, the vehicle is free of encumbrances, and the odometer reading is accurate to the best of their knowledge.</p>
             <p className="mb-2">3. The Buyer acknowledges the vehicle is sold as inspected and payment is required in full prior to vehicle release.</p>
             <p className="mb-2">4. Direct Auto Wholesale acts as facilitator only and is not a party to this sale.</p>
-            <p>5. This agreement is governed by the laws of Victoria, Australia.</p>
+            <p className="mb-2">5. This agreement is governed by the laws of Victoria, Australia.</p>
+            <p className="mb-2">6. <strong>Exclusivity</strong> — Upon signing this agreement, the Seller agrees not to sell, offer for sale, or enter into any other agreement regarding the vehicle with any third party while this agreement remains in effect. The vehicle is exclusively reserved for purchase by Direct Auto Wholesale during this period.</p>
+            <p className="mb-2">7. <strong>Inspection &amp; Access</strong> — The Seller agrees to make the vehicle available for inspection by Direct Auto Wholesale or its appointed representative at a mutually agreed time and location. The Seller must not alter, damage, or remove any parts from the vehicle after signing this agreement.</p>
+            <p className="mb-2">8. <strong>Cooling-Off Period</strong> — The Buyer has a 3 business day cooling-off period from the date of signing. If the Buyer elects not to proceed, the Seller will be released from the exclusivity obligation under clause 6.</p>
+            <p>9. <strong>Breach</strong> — If the Seller breaches the exclusivity clause by selling or offering the vehicle to a third party during the exclusivity period, the Seller may be liable for any costs or losses incurred by Direct Auto Wholesale, including but not limited to inspection costs, travel expenses, and administrative fees.</p>
           </div>
 
           {/* Name */}

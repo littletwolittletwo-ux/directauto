@@ -310,6 +310,36 @@ function SaleAgreementDocument({ data }: { data: SaleAgreementData }) {
           <Text style={styles.termNumber}>5. </Text>
           This agreement is governed by the laws of Victoria, Australia.
         </Text>
+        <Text style={styles.termText}>
+          <Text style={styles.termNumber}>6. </Text>
+          Exclusivity — Upon signing this agreement, the Seller agrees not to
+          sell, offer for sale, or enter into any other agreement regarding the
+          vehicle with any third party while this agreement remains in effect.
+          The vehicle is exclusively reserved for purchase by Direct Auto
+          Wholesale during this period.
+        </Text>
+        <Text style={styles.termText}>
+          <Text style={styles.termNumber}>7. </Text>
+          Inspection &amp; Access — The Seller agrees to make the vehicle
+          available for inspection by Direct Auto Wholesale or its appointed
+          representative at a mutually agreed time and location. The Seller must
+          not alter, damage, or remove any parts from the vehicle after signing
+          this agreement.
+        </Text>
+        <Text style={styles.termText}>
+          <Text style={styles.termNumber}>8. </Text>
+          Cooling-Off Period — The Buyer has a 3 business day cooling-off period
+          from the date of signing. If the Buyer elects not to proceed, the
+          Seller will be released from the exclusivity obligation under clause 6.
+        </Text>
+        <Text style={styles.termText}>
+          <Text style={styles.termNumber}>9. </Text>
+          Breach — If the Seller breaches the exclusivity clause by selling or
+          offering the vehicle to a third party during the exclusivity period,
+          the Seller may be liable for any costs or losses incurred by Direct
+          Auto Wholesale, including but not limited to inspection costs, travel
+          expenses, and administrative fees.
+        </Text>
 
         {/* PPSR Section */}
         <Text style={styles.sectionTitle}>PPSR CHECK</Text>
