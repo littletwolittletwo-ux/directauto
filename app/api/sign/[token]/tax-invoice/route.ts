@@ -13,6 +13,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 
     const agreement = await prisma.saleAgreement.findUnique({
       where: { signingToken: token },
+      include: { vehicle: { select: { id: true, isCompanyVehicle: true } } },
     })
 
     if (!agreement) {
@@ -26,7 +27,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    if (!agreement.isCompany) {
+    if (!agreement.vehicle.isCompanyVehicle) {
       return NextResponse.json(
         { error: 'No tax invoice available for this agreement.' },
         { status: 400 }

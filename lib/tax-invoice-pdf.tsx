@@ -304,7 +304,7 @@ export async function generateTaxInvoicePdf(
 
   if (!vehicle) throw new Error("Vehicle not found")
   if (!vehicle.saleAgreement) throw new Error("No sale agreement found")
-  if (!vehicle.saleAgreement.isCompany) throw new Error("Not a company sale")
+  if (!vehicle.isCompanyVehicle) throw new Error("Not a company sale")
 
   const settings = await prisma.settings.findUnique({
     where: { id: "singleton" },
@@ -321,8 +321,8 @@ export async function generateTaxInvoicePdf(
       month: "long",
       year: "numeric",
     }),
-    sellerCompanyName: vehicle.saleAgreement.companyName || "",
-    sellerAbn: vehicle.saleAgreement.companyAbn || "",
+    sellerCompanyName: vehicle.companyName || "",
+    sellerAbn: vehicle.companyAbn || "",
     sellerName:
       vehicle.identity?.fullLegalName || vehicle.sellerName,
     sellerAddress: vehicle.identity?.address || "",

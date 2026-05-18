@@ -42,6 +42,9 @@ interface FormState {
   sellerPhone: string;
   sellerEmail: string;
   sellerAddress: string;
+  isCompanyVehicle: boolean;
+  companyName: string;
+  companyAbn: string;
   // Step 3
   licenceNumber: string;
   licenceState: string;
@@ -74,6 +77,9 @@ const defaultFormState: FormState = {
   sellerPhone: "",
   sellerEmail: "",
   sellerAddress: "",
+  isCompanyVehicle: false,
+  companyName: "",
+  companyAbn: "",
   licenceNumber: "",
   licenceState: "",
   licenceExpiry: "",
@@ -103,6 +109,9 @@ const SERIALIZABLE_FIELDS = [
   "sellerPhone",
   "sellerEmail",
   "sellerAddress",
+  "isCompanyVehicle",
+  "companyName",
+  "companyAbn",
   "licenceNumber",
   "licenceState",
   "licenceExpiry",
@@ -211,13 +220,22 @@ export default function MultiStepForm({
           formData.year.trim() &&
           formData.odometer.trim()
         );
-      case 2:
-        return !!(
+      case 2: {
+        const baseValid = !!(
           formData.sellerName.trim() &&
           formData.sellerPhone.trim() &&
           formData.sellerEmail.trim() &&
           formData.sellerAddress.trim()
         );
+        if (!baseValid) return false;
+        if (formData.isCompanyVehicle) {
+          return !!(
+            formData.companyName.trim() &&
+            formData.companyAbn.replace(/\s/g, "").length >= 9
+          );
+        }
+        return true;
+      }
       case 3:
         return !!(
           formData.licenceNumber.trim() &&
@@ -291,6 +309,9 @@ export default function MultiStepForm({
         sellerPhone: formData.sellerPhone,
         sellerEmail: formData.sellerEmail,
         sellerAddress: formData.sellerAddress,
+        isCompanyVehicle: formData.isCompanyVehicle,
+        companyName: formData.isCompanyVehicle ? formData.companyName : undefined,
+        companyAbn: formData.isCompanyVehicle ? formData.companyAbn : undefined,
         licenceNumber: formData.licenceNumber,
         licenceState: formData.licenceState,
         licenceExpiry: formData.licenceExpiry,

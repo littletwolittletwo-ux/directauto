@@ -12,7 +12,7 @@ interface AgreementData {
   agreementDate: string
   signerName?: string
   signedAt?: string
-  isCompany?: boolean
+  isCompanyVehicle?: boolean
   vehicle: {
     make: string
     model: string
@@ -47,9 +47,6 @@ export default function SigningPage() {
   const [isDrawing, setIsDrawing] = useState(false)
   const [hasDrawn, setHasDrawn] = useState(false)
   const [checks, setChecks] = useState({ read: false, agree: false, confirm: false })
-  const [isCompany, setIsCompany] = useState(false)
-  const [companyName, setCompanyName] = useState("")
-  const [companyAbn, setCompanyAbn] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
   const [pdfUrl, setPdfUrl] = useState("")
@@ -72,7 +69,7 @@ export default function SigningPage() {
       if (d.status === "SIGNED") {
         setStep("complete")
         setPdfUrl(`/api/sign/${token}/pdf`)
-        if (d.isCompany) setTaxInvoiceUrl(`/api/sign/${token}/tax-invoice`)
+        if (d.isCompanyVehicle) setTaxInvoiceUrl(`/api/sign/${token}/tax-invoice`)
       }
     } catch {
       setError("Failed to connect. Please try again.")
@@ -169,12 +166,7 @@ export default function SigningPage() {
       const res = await fetch(`/api/sign/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          signerName: signerName.trim(),
-          isCompany,
-          companyName: isCompany ? companyName.trim() : undefined,
-          companyAbn: isCompany ? companyAbn.trim() : undefined,
-        }),
+        body: JSON.stringify({ signerName: signerName.trim() }),
       })
       if (!res.ok) {
         const body = await res.json()
@@ -189,7 +181,6 @@ export default function SigningPage() {
         signedAt: result.signedAt,
       })
       setPdfUrl(result.pdfUrl || `/api/sign/${token}/pdf`)
-      if (result.taxInvoiceUrl) setTaxInvoiceUrl(result.taxInvoiceUrl)
       setStep("complete")
     } catch {
       setSubmitError("Network error. Please try again.")
@@ -200,8 +191,7 @@ export default function SigningPage() {
 
   const allChecked = checks.read && checks.agree && checks.confirm
   const sigReady = useTypedSig ? signerName.trim().length >= 2 : hasDrawn
-  const companyReady = !isCompany || (companyName.trim().length >= 2 && companyAbn.replace(/\s/g, "").length >= 9)
-  const canSign = allChecked && sigReady && signerName.trim().length >= 2 && companyReady
+  const canSign = allChecked && sigReady && signerName.trim().length >= 2
 
   const formatPrice = (p: number) =>
     p.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -394,53 +384,6 @@ export default function SigningPage() {
               placeholder="Type your full legal name"
               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             />
-          </div>
-
-          {/* Company vehicle section */}
-          <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isCompany}
-                onChange={(e) => setIsCompany(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="text-sm text-gray-700 font-medium">
-                This vehicle is registered under a company name
-              </span>
-            </label>
-
-            {isCompany && (
-              <div className="space-y-3 pl-7">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Company Name
-                  </label>
-                  <input
-                    type="text"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    placeholder="Enter company name"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ABN
-                  </label>
-                  <input
-                    type="text"
-                    value={companyAbn}
-                    onChange={(e) => setCompanyAbn(e.target.value)}
-                    placeholder="e.g. 12 345 678 901"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  />
-                </div>
-                <p className="text-xs text-gray-500">
-                  A tax invoice will be generated and available for download after signing.
-                </p>
-              </div>
-            )}
           </div>
 
           {/* Signature */}

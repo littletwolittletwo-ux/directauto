@@ -73,6 +73,9 @@ export async function POST(request: NextRequest) {
     const declarationAgreed = body.declarationAgreed === true || body.declarationAgreed === 'true'
     const consentAgreed = body.consentAgreed === true || body.consentAgreed === 'true'
     const signatureName = (body.signatureName || '').trim()
+    const isCompanyVehicle = body.isCompanyVehicle === true || body.isCompanyVehicle === 'true'
+    const companyName = isCompanyVehicle ? (body.companyName || '').trim() : null
+    const companyAbn = isCompanyVehicle ? (body.companyAbn || '').replace(/\s/g, '').trim() : null
     const tokenId = body.tokenId || null
 
     // Supabase Storage paths (files already uploaded from browser)
@@ -142,6 +145,9 @@ export async function POST(request: NextRequest) {
           ipAddress: ip,
           sellerSignature: signatureName,
           signedAt: new Date(),
+          isCompanyVehicle,
+          companyName,
+          companyAbn,
           status: 'PENDING_VERIFICATION',
         },
       })
@@ -173,6 +179,9 @@ export async function POST(request: NextRequest) {
           ipAddress: ip,
           sellerSignature: signatureName,
           signedAt: new Date(),
+          isCompanyVehicle,
+          companyName,
+          companyAbn,
           status: 'PENDING_VERIFICATION',
         },
       })

@@ -41,7 +41,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         status: 'SIGNED',
         signerName: agreement.signerName,
         signedAt: agreement.signedAt,
-        isCompany: agreement.isCompany,
+        isCompanyVehicle: agreement.vehicle.isCompanyVehicle,
         vehicle: {
           make: agreement.vehicle.make,
           model: agreement.vehicle.model,
@@ -89,28 +89,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { token } = await params
     const body = await request.json()
-    const { signerName, isCompany, companyName, companyAbn } = body
+    const { signerName } = body
 
     if (!signerName || typeof signerName !== 'string' || signerName.trim().length < 2) {
       return NextResponse.json(
         { error: 'Please provide your full legal name.' },
         { status: 400 }
       )
-    }
-
-    if (isCompany) {
-      if (!companyName || typeof companyName !== 'string' || companyName.trim().length < 2) {
-        return NextResponse.json(
-          { error: 'Please provide the company name.' },
-          { status: 400 }
-        )
-      }
-      if (!companyAbn || typeof companyAbn !== 'string' || companyAbn.replace(/\s/g, '').length < 9) {
-        return NextResponse.json(
-          { error: 'Please provide a valid ABN.' },
-          { status: 400 }
-        )
-      }
     }
 
     const agreement = await prisma.saleAgreement.findUnique({
@@ -138,9 +123,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         signedAt: new Date(),
         signerName: signerName.trim(),
         signerIp,
-        isCompany: !!isCompany,
-        companyName: isCompany ? companyName.trim() : null,
-        companyAbn: isCompany ? companyAbn.replace(/\s/g, '').trim() : null,
       },
     })
 
@@ -159,8 +141,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       confirmationNumber: agreement.vehicle.confirmationNumber,
       signedAt: updated.signedAt,
       pdfUrl: `/api/sign/${token}/pdf`,
-      isCompany: !!isCompany,
-      taxInvoiceUrl: isCompany ? `/api/sign/${token}/tax-invoice` : null,
     })
   } catch (err) {
     console.error('[SIGN] POST error:', err)
