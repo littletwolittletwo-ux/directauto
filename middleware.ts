@@ -32,8 +32,11 @@ export default withAuth(
           pathname.startsWith('/login') ||
           pathname.startsWith('/api/auth') ||
           pathname.startsWith('/api/debug/') ||
+          pathname.startsWith('/api/cron/') ||
+          pathname.startsWith('/api/sale-agreement/') ||
           pathname.startsWith('/sign') ||
           pathname.startsWith('/sign-bos') ||
+          pathname.startsWith('/sale-agreement') ||
           pathname.startsWith('/api/sign/') ||
           pathname.startsWith('/api/bill-of-sale/') ||
           pathname === '/'
@@ -56,5 +59,6 @@ export const config = {
     '/submit/:path*',
     '/sign/:path*',
     '/sign-bos/:path*',
+    '/sale-agreement/:path*',
   ],
 }
