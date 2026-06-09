@@ -1,14 +1,17 @@
 /**
- * PPSR B2G Registration Lodgement Service
+ * PPSR Registration Lodgement Service
  *
- * Provides mock and real B2G providers for lodging Motor Vehicle
+ * Provides mock, legacy B2G, and PPSR Cloud providers for lodging Motor Vehicle
  * registrations against a Secured Party Group on the PPSR.
  *
- * Switch provider via PPSR_PROVIDER env var: 'mock' | 'real'
+ * Switch provider via PPSR_PROVIDER env var: 'mock' | 'real' | 'ppsrcloud'
+ *
+ * Recommended: 'ppsrcloud' — uses PPSR Cloud B2B REST API with custom templates
  */
 
 import { redact } from './log-redact'
 import { ppsrFetch } from './ppsr-http'
+import * as ppsrCloud from './ppsr-cloud-client'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -416,6 +419,99 @@ class MockProvider implements PpsrLodgeProvider {
 }
 
 // ---------------------------------------------------------------------------
+// PPSR Cloud Provider (recommended)
+// ---------------------------------------------------------------------------
+
+class PpsrCloudProvider implements PpsrLodgeProvider {
+  async lodgeRegistration(req: LodgeRegistrationRequest): Promise<LodgeRegistrationResult> {
+    console.log('[PPSR-Cloud] Lodge registration for VIN:', req.vehicleVin, 'type:', req.collateralType)
+
+    // Map collateral type to template:
+    // Consumer (individual seller) → "individual" template, no grantors
+    // Commercial (dealer/company) → "dealer" template, requires organisation grantor
+    const templateIdentifier = req.collateralType === 'Consumer' ? 'individual' : 'dealer'
+
+    // Map grantors to PPSR Cloud format
+    let cloudGrantors: ppsrCloud.Grantor[] | undefined
+    if (templateIdentifier === 'dealer' && req.grantors.length > 0) {
+      cloudGrantors = req.grantors.map(g => {
+        if (g.type === 'organisation') {
+          return {
+            grantorType: 'organisation' as const,
+            organisationNumberType: (g.organisationNumberType?.toLowerCase() || 'acn') as 'acn' | 'abn' | 'arsn' | 'arbn' | 'nameonly',
+            organisationNumber: g.organisationNumber,
+            organisationName: g.organisationName,
+          }
+        } else {
+          return {
+            grantorType: 'individual' as const,
+            individualFamilyName: g.familyName,
+            individualGivenNames: g.givenNames,
+            individualDateOfBirth: g.dateOfBirth,
+          }
+        }
+      })
+    }
+
+    const result = await ppsrCloud.lodgeAndConfirm(
+      templateIdentifier,
+      req.vehicleVin,
+      cloudGrantors,
+      {
+        givingOfNoticeIdentifier: req.givingOfNoticeIdentifier,
+        autoRenew: true,
+      }
+    )
+
+    // Calculate dates
+    const now = new Date()
+    const endTime = new Date(now)
+    endTime.setFullYear(endTime.getFullYear() + 7)
+
+    const feeCents = parseInt(process.env.PPSR_REGISTRATION_FEE_CENTS || '600', 10)
+
+    return {
+      registrationNumber: result.registrationNumber,
+      changeNumber: 0,
+      transactionId: 0,
+      registrationStartTime: now.toISOString(),
+      registrationEndTime: endTime.toISOString(),
+      wasEndTimeAdjusted: false,
+      feeCents,
+      rawRequest: JSON.stringify({ templateIdentifier, vin: req.vehicleVin, grantors: cloudGrantors }),
+      rawResponse: JSON.stringify(result),
+    }
+  }
+
+  async getRegistration(registrationNumber: string): Promise<GetRegistrationResult> {
+    // For PPSR Cloud we need the ppsrCloudId, not the registration number
+    // If we only have the registration number, list and find it
+    console.log('[PPSR-Cloud] Get registration:', registrationNumber)
+
+    // Try listing to find by registration number
+    const list = await ppsrCloud.listRegistrations()
+    const found = (list.registrations as Array<Record<string, unknown>>).find(
+      r => r.registrationNumber === registrationNumber
+    )
+
+    if (found && found.ppsrCloudId) {
+      const details = await ppsrCloud.retrieveRegistration(found.ppsrCloudId as string)
+      return {
+        registrationNumber: details.registrationNumber,
+        status: details.status,
+        rawResponse: JSON.stringify(details.rawResponse),
+      }
+    }
+
+    return {
+      registrationNumber,
+      status: 'unknown',
+      rawResponse: JSON.stringify({ message: 'Not found in PPSR Cloud listing' }),
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Provider factory
 // ---------------------------------------------------------------------------
 
@@ -427,8 +523,12 @@ export function getPpsrLodgeProvider(): PpsrLodgeProvider {
   const providerType = process.env.PPSR_PROVIDER || 'mock'
 
   switch (providerType) {
+    case 'ppsrcloud':
+      console.log('[PPSR] Using PPSR Cloud B2B provider')
+      _provider = new PpsrCloudProvider()
+      break
     case 'real':
-      console.log('[PPSR] Using real B2G provider')
+      console.log('[PPSR] Using real B2G provider (legacy)')
       _provider = new RealB2GProvider()
       break
     case 'mock':
@@ -436,7 +536,7 @@ export function getPpsrLodgeProvider(): PpsrLodgeProvider {
       _provider = new MockProvider()
       break
     default:
-      throw new ConfigError(`Unknown PPSR_PROVIDER: ${providerType}. Use 'mock' or 'real'.`)
+      throw new ConfigError(`Unknown PPSR_PROVIDER: ${providerType}. Use 'ppsrcloud', 'mock', or 'real'.`)
   }
 
   return _provider
@@ -449,7 +549,7 @@ export function resetPpsrLodgeProvider(): void {
 
 // ---------------------------------------------------------------------------
 // Legacy API — used by existing API routes (lodge/discharge)
-// These delegate to the mock provider until real B2G is wired up.
+// Now delegates to PPSR Cloud when PPSR_PROVIDER=ppsrcloud
 // ---------------------------------------------------------------------------
 
 /**
@@ -461,14 +561,35 @@ export async function lodge(input: LodgementInput): Promise<LodgementResult> {
     throw new PPSRError('Invalid VIN — must be at least 11 characters', false)
   }
 
-  // Simulate API latency
+  const providerType = process.env.PPSR_PROVIDER || 'mock'
+
+  if (providerType === 'ppsrcloud') {
+    // Use PPSR Cloud B2B API
+    const result = await ppsrCloud.lodgeAndConfirm(
+      'individual', // Default to individual; caller should use provider directly for dealer
+      input.vin,
+      undefined,
+      { givingOfNoticeIdentifier: `vehicle-${input.registrationNumber}` }
+    )
+
+    const expiresAt = new Date()
+    expiresAt.setFullYear(expiresAt.getFullYear() + 7)
+    const feeCents = parseInt(process.env.PPSR_REGISTRATION_FEE_CENTS || '600', 10)
+
+    return {
+      registrationNumber: result.registrationNumber,
+      expiresAt,
+      feeCents,
+      providerReference: result.ppsrCloudId,
+    }
+  }
+
+  // Mock fallback
   await new Promise((r) => setTimeout(r, 1000))
 
   const regNum = `PPSR-${Date.now().toString(36).toUpperCase()}`
-
   const expiresAt = new Date()
   expiresAt.setFullYear(expiresAt.getFullYear() + 7)
-
   const feeCents = parseInt(process.env.PPSR_REGISTRATION_FEE_CENTS || '600', 10)
 
   return {
@@ -483,8 +604,19 @@ export async function lodge(input: LodgementInput): Promise<LodgementResult> {
  * Check the status of an existing PPSR registration.
  */
 export async function getRegistration(registrationNumber: string) {
-  await new Promise((r) => setTimeout(r, 500))
+  const providerType = process.env.PPSR_PROVIDER || 'mock'
 
+  if (providerType === 'ppsrcloud') {
+    const provider = new PpsrCloudProvider()
+    const result = await provider.getRegistration(registrationNumber)
+    return {
+      registrationNumber: result.registrationNumber,
+      status: result.status,
+      expiresAt: new Date(Date.now() + 7 * 365 * 24 * 60 * 60 * 1000),
+    }
+  }
+
+  await new Promise((r) => setTimeout(r, 500))
   return {
     registrationNumber,
     status: 'active',
@@ -501,8 +633,18 @@ export async function discharge(registrationNumber: string): Promise<DischargeRe
     throw new PPSRError('Registration number is required for discharge', false)
   }
 
-  await new Promise((r) => setTimeout(r, 800))
+  const providerType = process.env.PPSR_PROVIDER || 'mock'
 
+  if (providerType === 'ppsrcloud') {
+    const result = await ppsrCloud.dischargeRegistration(registrationNumber)
+    return {
+      success: result.success,
+      dischargedAt: new Date(),
+      providerReference: result.ppsrCloudId,
+    }
+  }
+
+  await new Promise((r) => setTimeout(r, 800))
   return {
     success: true,
     dischargedAt: new Date(),

@@ -3,6 +3,12 @@
   "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs",
   "regions": ["sin1"],
+  "crons": [
+    {
+      "path": "/api/cron/ar-collection",
+      "schedule": "0 6 * * *"
+    }
+  ],
   "functions": {
     "app/api/submit/route.ts": { "maxDuration": 60 },
     "app/api/documents/upload/route.ts": { "maxDuration": 60 },
@@ -10,6 +16,9 @@
     "app/api/vehicles/[id]/bill-of-sale-doc/download/route.ts": { "maxDuration": 60 },
     "app/api/bill-of-sale/[token]/route.ts": { "maxDuration": 60 },
     "app/api/bill-of-sale/[token]/pdf/route.ts": { "maxDuration": 60 },
-    "app/api/export/pdf/[id]/route.ts": { "maxDuration": 60 }
+    "app/api/export/pdf/[id]/route.ts": { "maxDuration": 60 },
+    "app/api/vehicles/[id]/ppsr/lodge/route.ts": { "maxDuration": 60 },
+    "app/api/vehicles/[id]/ppsr/search/route.ts": { "maxDuration": 60 },
+    "app/api/cron/ar-collection/route.ts": { "maxDuration": 60 }
   }
 }

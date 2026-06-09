@@ -11,7 +11,7 @@ interface RouteParams {
   params: Promise<{ id: string }>
 }
 
-export async function POST(_request: NextRequest, { params }: RouteParams) {
+export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
@@ -20,6 +20,14 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params
     const userId = (session.user as Record<string, unknown>).id as string
+
+    // Optional body: { sellerType?: 'individual' | 'dealer', acn?: string }
+    let bodyData: Record<string, unknown> = {}
+    try {
+      bodyData = await request.json()
+    } catch {
+      // No body is fine — defaults to individual
+    }
 
     const vehicle = await prisma.vehicle.findUnique({ where: { id } })
     if (!vehicle) {
@@ -41,12 +49,14 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    const providerName = process.env.PPSR_PROVIDER || 'mock'
+
     // Create a pending record
     const record = await prisma.pPSRRecord.create({
       data: {
         vehicleId: id,
         status: 'pending',
-        provider: 'mock', // Replace with actual provider
+        provider: providerName === 'ppsrcloud' ? 'ppsr-cloud-b2b' : providerName,
         requestPayload: {
           vin: vehicle.vin,
           registrationNumber: vehicle.registrationNumber,
@@ -54,6 +64,8 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
           model: vehicle.model,
           year: vehicle.year,
           sellerName: vehicle.sellerName,
+          sellerType: bodyData.sellerType || 'individual',
+          acn: bodyData.acn || null,
         } as Prisma.InputJsonValue,
         createdByUserId: userId,
       },

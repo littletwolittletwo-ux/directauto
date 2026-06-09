@@ -48,6 +48,31 @@ model Vehicle {
   status             VehicleStatus @default(PENDING_VERIFICATION)
   riskScore          Int           @default(0)
   riskFlags          Json          @default("[]")
+
+  // Framework v2 fields
+  dealStatus              DealStatus     @default(SOURCED)
+  sellerType              SellerType     @default(PRIVATE_INDIVIDUAL)
+  ppsrPath                PpsrPath       @default(NO_DEPOSIT)
+  depositPaidCents        Int            @default(0)
+  depositPaidAt           DateTime?
+  loadFeeCents            Int            @default(25000)
+  resalePriceCents        Int?
+  inspectionCostCents     Int?
+  inspectionBookedAt      DateTime?
+  inspectionCompletedAt   DateTime?
+  inspectionPassed        Boolean?
+  inspectionReportUrl     String?
+  contractSignedAt        DateTime?
+  paidAt                  DateTime?
+  closedAt                DateTime?
+  cancelledAt             DateTime?
+  cancelReason            String?
+  sellerAbn               String?
+  sellerAcn               String?
+  sellerGstRegistered     Boolean?
+  assignedSalesUserId     String?
+  buyerDealerId           String?
+  buyerDealer             BuyerDealer?   @relation(fields: [buyerDealerId], references: [id])
   adminNotes         Json          @default("[]")
   sellerSignature    String?
   signedAt           DateTime?
@@ -84,14 +109,18 @@ model Vehicle {
   identity           SellerIdentity?
   ownership          OwnershipRecord?
   ppsrCheck          PPSRCheck?
-  saleAgreement      SaleAgreement?
-  billOfSale         BillOfSale?
-  documents          Document[]
-  auditLogs          AuditLog[]
-  approvalHistory    ApprovalHistory[]
-  invoices           ApplicationInvoice[]
-  expenses           ApplicationExpense[]
-  ppsrRecords        PPSRRecord[]
+  saleAgreement           SaleAgreement?
+  billOfSale              BillOfSale?
+  inspectionAuthorisation InspectionAuthorisation?
+  ddChecklist             DDChecklist?
+  spotterFee              SpotterFee?
+  gstRegisterEntries      GSTRegisterEntry[]
+  documents               Document[]
+  auditLogs               AuditLog[]
+  approvalHistory         ApprovalHistory[]
+  invoices                ApplicationInvoice[]
+  expenses                ApplicationExpense[]
+  ppsrRecords             PPSRRecord[]
 }
 
 enum Source {
@@ -119,6 +148,33 @@ enum StockStatus {
   IN_STOCK
   SOLD
   WITHDRAWN
+}
+
+enum DealStatus {
+  SOURCED
+  UNDER_OFFER
+  CONTRACT_SIGNED
+  COMMITTED
+  APPROVED_FOR_PAYMENT
+  PAYMENT_READY
+  PAID
+  LISTED
+  SOLD
+  CLOSED
+  CANCELLED_DD_FAIL
+  CANCELLED_INSPECTION_FAIL
+}
+
+enum SellerType {
+  PRIVATE_INDIVIDUAL
+  PRIVATE_COMPANY
+  LMCT_DEALER
+}
+
+enum PpsrPath {
+  DEPOSIT_AND_LODGE
+  DEPOSIT_ONLY
+  NO_DEPOSIT
 }
 
 model SellerIdentity {
@@ -344,8 +400,12 @@ model ApplicationInvoice {
   pdfUrl            String?
   sentAt            DateTime?
   sentToEmail       String?
+  dueDate           DateTime?
+  paidAt            DateTime?
+  buyerDealerId     String?
   createdByUserId   String
   createdAt         DateTime @default(now())
+  collectionActions CollectionAction[]
 
   @@index([vehicleId])
   @@index([createdAt])
@@ -405,4 +465,152 @@ model PPSRRecord {
   createdAt           DateTime  @default(now())
 
   @@index([vehicleId])
+}
+
+// ============================================================================
+// Framework v2 Models
+// ============================================================================
+
+model InspectionAuthorisation {
+  id              String    @id @default(uuid())
+  vehicleId       String    @unique
+  vehicle         Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  ownerName       String
+  vehicleLocation String?
+  status          String    @default("DRAFT") // DRAFT, SENT, SIGNED
+  signingToken    String?   @unique
+  sentAt          DateTime?
+  sentById        String?
+  signedAt        DateTime?
+  signerName      String?
+  signerIp        String?
+  signerUserAgent String?
+  signatureData   String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model BuyerDealer {
+  id                String    @id @default(uuid())
+  name              String
+  contactName       String?
+  email             String?
+  phone             String?
+  address           String?
+  abn               String?
+  lmctNumber        String?
+  riskRating        String    @default("STANDARD") // LOW, STANDARD, HIGH
+  creditStatus      String    @default("ACTIVE") // ACTIVE, SUSPENDED, FROZEN, BLACKLISTED
+  creditSuspendedAt DateTime?
+  blacklistedAt     DateTime?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  vehicles          Vehicle[]
+  collectionActions CollectionAction[]
+}
+
+model DDChecklist {
+  id                      String    @id @default(uuid())
+  vehicleId               String    @unique
+  vehicle                 Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  // Stage 1 checks (1st approver)
+  inspectionReviewed      Boolean   @default(false)
+  inspectionReviewedAt    DateTime?
+  licenceVerified         Boolean   @default(false)
+  licenceVerifiedAt       DateTime?
+  regoOwnerConfirmed      Boolean   @default(false)
+  regoOwnerConfirmedAt    DateTime?
+  ppsrConfirmed           Boolean   @default(false)
+  ppsrConfirmedAt         DateTime?
+  bankVerified            Boolean   @default(false)
+  bankVerifiedAt          DateTime?
+  financePayoutVerified   Boolean   @default(false)
+  financePayoutVerifiedAt DateTime?
+  financePayoutNa         Boolean   @default(false)
+  // Stage 1 completion
+  stage1CompletedAt       DateTime?
+  stage1CompletedById     String?
+  // Stage 2 approval (2nd approver)
+  stage2ApprovedAt        DateTime?
+  stage2ApprovedById      String?
+  stage2RejectedAt        DateTime?
+  stage2RejectionReason   String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+model CommissionRate {
+  id            String    @id @default(uuid())
+  userId        String
+  ratePercent   Int       @default(25) // 25 or 50
+  effectiveFrom DateTime  @default(now())
+  effectiveTo   DateTime?
+  setByUserId   String?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model SpotterFee {
+  id                String    @id @default(uuid())
+  vehicleId         String    @unique
+  vehicle           Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  salesUserId       String
+  ratePercent       Int
+  resalePriceCents  Int
+  costPriceCents    Int
+  totalExpensesCents Int
+  loadFeeCents      Int       @default(25000)
+  netProfitCents    Int
+  feeAmountCents    Int
+  calculatedAt      DateTime  @default(now())
+  lockedAt          DateTime?
+  paidAt            DateTime?
+  paidInPayrollCycle String?
+  adjustmentNotes   String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model GSTRegisterEntry {
+  id                  String    @id @default(uuid())
+  vehicleId           String
+  vehicle             Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  acquisitionDate     DateTime
+  sellerName          String
+  sellerAbn           String?
+  sellerGstRegistered Boolean   @default(false)
+  purchasePriceCents  Int
+  resalePriceCents    Int?
+  marginCents         Int?
+  notionalGstCents    Int?
+  basQuarter          String?   // e.g., "Q1", "Q2", "Q3", "Q4"
+  basYear             Int?
+  gstCreditUnlockedAt DateTime?
+  notes               String?
+  createdAt           DateTime  @default(now())
+
+  @@index([basQuarter, basYear])
+  @@index([vehicleId])
+}
+
+model CollectionAction {
+  id            String      @id @default(uuid())
+  invoiceId     String
+  invoice       ApplicationInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  buyerDealerId String?
+  buyerDealer   BuyerDealer? @relation(fields: [buyerDealerId], references: [id])
+  actionType    String      // REMINDER_DUE_SOON, REMINDER_OVERDUE, PHONE_CALL, FORMAL_EMAIL, CREDIT_SUSPENDED, ACCOUNT_FROZEN, DEMAND_LETTER, EXTERNAL_RECOVERY
+  dueDate       DateTime?
+  daysOverdue   Int?
+  sentAt        DateTime?
+  sentVia       String?     // email, sms, phone, letter
+  completedAt   DateTime?
+  completedById String?
+  notes         String?
+  createdAt     DateTime    @default(now())
+
+  @@index([invoiceId])
+  @@index([buyerDealerId])
 }
